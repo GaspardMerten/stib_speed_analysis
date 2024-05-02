@@ -115,6 +115,9 @@ def main():
         ax.set_title("Average speed per stop")
         plt.setp(ax.spines.values(), color='white')
         plt.setp([ax.get_xticklines(), ax.get_yticklines()], color='white')
+        # make background transparent
+        ax.patch.set_alpha(0)
+        ax.set_axis_off()
 
         st.pyplot(figure)
 
