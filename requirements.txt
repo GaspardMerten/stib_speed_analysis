@@ -3,3 +3,5 @@ pydantic
 streamlit
 geopandas
 pandas
+plotly
+matplotlib

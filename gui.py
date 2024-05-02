@@ -1,7 +1,5 @@
-import random
-import string
-
 import motion_lake_client
+import plotly.express as px
 import streamlit as st
 
 from helpers import get_stops, build_results
@@ -71,9 +69,11 @@ def main():
             selected_period_start, selected_period_end, start_stop_index, end_stop_index,
             excluded_periods
         )
+        results_light = results[
+            ["count", "stop_name", "direction_stop_name", "next_stop_name", "date", "time", "speed"]]
 
         # Display the results
-        st.write(results)
+        st.write(results_light)
 
         # Compute abg speed and distance per stop_name and date
         new_results = results.groupby(["stop_name", "date"]).agg(
@@ -91,6 +91,32 @@ def main():
 
         # Plot
         st.line_chart(new_results.set_index("date"))
+
+        # Now do the same but per stop_name (so avg speed per stop_name)
+        new_results = results.groupby("stop_name").agg(
+            avg_speed=("speed", "mean"),
+            total_time=("time", "mean")
+        ).reset_index()
+
+        st.write("Results per stop_name:")
+        st.write(new_results)
+        st.line_chart(new_results.set_index("stop_name"))
+
+        avg_speed_per_line = results.groupby(["stop_name", "geometry_y"]).agg(
+            avg_speed=("speed", "mean"),
+        ).reset_index().rename(columns={"geometry_y": "geometry"})
+        import geopandas as gpd
+        import matplotlib.pyplot as plt
+        figure, ax = plt.subplots()
+        gdf = gpd.GeoDataFrame(avg_speed_per_line, geometry="geometry")
+        gdf.plot(column="avg_speed", legend=True, ax=ax)
+        # make the plot transparent and text and borders white
+        ax.set_facecolor('black')
+        ax.set_title("Average speed per stop")
+        plt.setp(ax.spines.values(), color='white')
+        plt.setp([ax.get_xticklines(), ax.get_yticklines()], color='white')
+
+        st.pyplot(figure)
 
 
 if __name__ == "__main__":

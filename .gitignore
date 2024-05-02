@@ -1,0 +1,9 @@
+# std gitignore for python
+__pycache__/
+*.pyc
+
+# ignore virtualenv
+venv/
+.venv
+
+

@@ -100,6 +100,5 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
     results["direction_stop_name"] = results["directionId"].apply(get_stop_name)
     results["next_stop_name"] = results["next_stop_id"].apply(get_stop_name)
     results["time"] = results["delta_distance"] / (results["speed"] / 3.6)
-    results_light = results[["count", "stop_name", "direction_stop_name", "next_stop_name", "date", "time", "speed"]]
 
-    return results_light
+    return results
