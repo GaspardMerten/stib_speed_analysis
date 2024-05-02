@@ -78,7 +78,8 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
             selected_period[0] + timedelta(days=day),
             selected_period[0] + timedelta(day + 1),
             selected_days_human_index, start_hour, end_hour,
-            speed_type
+            aggregation="date_trunc('hour', {date})",
+            speed_type=speed_type
         )
         if results is not None:
             results = pd.concat([results, day_results])
