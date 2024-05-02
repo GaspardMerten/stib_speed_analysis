@@ -1,5 +1,4 @@
 import motion_lake_client
-import plotly.express as px
 import streamlit as st
 
 from helpers import get_stops, build_results
@@ -107,17 +106,11 @@ def main():
         ).reset_index().rename(columns={"geometry_y": "geometry"})
         import geopandas as gpd
         import matplotlib.pyplot as plt
+
         figure, ax = plt.subplots()
         gdf = gpd.GeoDataFrame(avg_speed_per_line, geometry="geometry")
         gdf.plot(column="avg_speed", legend=True, ax=ax)
-        # make the plot transparent and text and borders white
-        ax.set_facecolor('black')
-        ax.set_title("Average speed per stop")
-        plt.setp(ax.spines.values(), color='white')
-        plt.setp([ax.get_xticklines(), ax.get_yticklines()], color='white')
-        # make background transparent
-        ax.patch.set_alpha(0)
-        ax.set_axis_off()
+
 
         st.pyplot(figure)
 
