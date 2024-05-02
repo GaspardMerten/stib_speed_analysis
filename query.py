@@ -49,8 +49,6 @@ def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_dat
     GROUP BY lineId, directionId, pointId, agg
     """
 
-    print(query)
-
     results = client.advanced_query(
         "stib_vehicle_distance",
         query,
