@@ -45,7 +45,7 @@ def get_segments(_client, line_id, direction_id: int):
 
 
 def build_results(client, stops, line_name, direction_id, selected_days_human_index, start_hour, end_hour, start_date,
-                  end_date, start_stop_index, end_stop_index, excluded_periods):
+                  end_date, start_stop_index, end_stop_index, excluded_periods, speed_type):
     all_stops = get_stops(client)
 
     segments = get_segments(client, line_name, direction_id)
@@ -78,6 +78,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
             selected_period[0] + timedelta(days=day),
             selected_period[0] + timedelta(day + 1),
             selected_days_human_index, start_hour, end_hour,
+            speed_type
         )
         if results is not None:
             results = pd.concat([results, day_results])

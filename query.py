@@ -6,7 +6,7 @@ import pandas as pd
 
 def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_date: date,
                           max_date: date, selected_days_index: List[int], start_hour: int, end_hour: int,
-                          aggregation: str = "date_trunc('hour', {date})") -> pd.DataFrame:
+                          aggregation: str = "date_trunc('hour', {date})", speed_type=">") -> pd.DataFrame:
     # selected days index is in human index, convert to database index (0 is sunday)
     selected_days = [i % 7 for i in selected_days_index]
 
@@ -45,7 +45,7 @@ def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_dat
     )
     SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp+7200)*1000000)")} as agg
     FROM speedTable
-    WHERE speed >= 0 
+    WHERE speed {speed_type} 0 
     GROUP BY lineId, directionId, pointId, agg
     """
 

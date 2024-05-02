@@ -41,6 +41,13 @@ def main():
     selected_period_start = st.date_input("Enter start date for the selected period:")
     selected_period_end = st.date_input("Enter end date for the selected period:")
 
+    # A switch to select VICOM or VIUSER
+    switch_result = st.radio("Select the data source", ("VICOM", "VIUSER"))
+    if switch_result == "VICOM":
+        switch = ">="
+    else:
+        switch = ">"
+
     # Allow to specify excluded periods (e.g. holidays (so as many start, end dates as needed))
     st.write("Excluded periods")
 
@@ -66,7 +73,8 @@ def main():
             client, stops, line_name, direction_name, selected_days_human_index, start_hour,
             end_hour,
             selected_period_start, selected_period_end, start_stop_index, end_stop_index,
-            excluded_periods
+            excluded_periods,
+            switch
         )
         results_light = results[
             ["count", "stop_name", "direction_stop_name", "next_stop_name", "date", "time", "speed"]]
@@ -110,7 +118,6 @@ def main():
         figure, ax = plt.subplots()
         gdf = gpd.GeoDataFrame(avg_speed_per_line, geometry="geometry")
         gdf.plot(column="avg_speed", legend=True, ax=ax)
-
 
         st.pyplot(figure)
 
