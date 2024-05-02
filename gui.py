@@ -96,6 +96,7 @@ def main():
         st.write("Results per date:")
         st.write(new_results)
 
+        # drop na/inf
         # Plot
         st.line_chart(new_results.set_index("date"))
 
@@ -107,7 +108,13 @@ def main():
 
         st.write("Results per stop_name:")
         st.write(new_results)
-        st.line_chart(new_results.set_index("stop_name"))
+        st.write("Results per stop_name, avg speed")
+        st.line_chart(new_results.set_index("stop_name")[["avg_speed"]])
+        st.write("Results per stop_name, total time")
+        new_results = new_results.replace([float('inf'), -float('inf')], float('nan'))
+        # drop na
+        new_results = new_results.dropna()
+        st.line_chart(new_results.set_index("stop_name")[["total_time"]])
 
         avg_speed_per_line = results.groupby(["stop_name", "geometry_y"]).agg(
             avg_speed=("speed", "mean"),
