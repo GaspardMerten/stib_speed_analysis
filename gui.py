@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 
 from helpers import get_stops, build_results
+from query import SpeedComputationMode
 
 client = motion_lake_client.BaseClient("http://52.146.145.19:8000")
 
@@ -111,6 +112,15 @@ def main():
         ]
     )
 
+    compute_map = {
+
+        "Speed >= 0": SpeedComputationMode.ALL,
+        "Speed >= 0 but not 0 if close to stop": SpeedComputationMode.GREATER_THAN_ZERO_IF_CLOSE_TO_STOP,
+        "Speed > 0": SpeedComputationMode.GREATER_THAN_ZERO
+    }
+
+    selected_compute = compute_map[switch]
+
     # Allow to specify excluded periods (e.g. holidays (so as many start, end dates as needed))
     st.write("Excluded periods")
 
@@ -140,7 +150,7 @@ def main():
                 end_hour,
                 selected_period_start, selected_period_end, start_stop_index, end_stop_index,
                 excluded_periods,
-                switch
+                selected_compute
             )
 
             results = results.sort_values(by="stop_sequence")
