@@ -5,7 +5,7 @@ import geopandas
 import pandas as pd
 import streamlit as st
 
-from query import get_average_speed_for
+from query import get_average_speed_for, SpeedComputationMode
 
 
 @st.cache_data
@@ -53,8 +53,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
     segments = segments.drop(columns=["direction"])
     # Merge stops with segments
     stops = stops.merge(segments, left_on=["next_stop_id", "lineId"], right_on=["start", "line_id"])
-    print(start_stop_index, start_stop_index)
-    print(stops)
+
     # Print all stops for the selected line and direction, ask user to select index range
     stops = stops[stops["direction"] == direction_id].sort_values(by="stop_sequence").reset_index(drop=True)
     selected_stops = stops.loc[start_stop_index:end_stop_index]
@@ -67,7 +66,8 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
 
     # iterate over each day of the selected period
     for day in range((selected_period[1] - selected_period[0]).days + 1):
-        if any([selected_period[0] <= excluded_period[0] <= selected_period[1] for excluded_period in excluded_periods]):
+        if any([selected_period[0] <= excluded_period[0] <= selected_period[1] for excluded_period in
+                excluded_periods]):
             continue
 
         if (selected_period[0] + timedelta(day)).weekday() - 1 not in selected_days_human_index:
@@ -79,7 +79,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
             selected_period[0] + timedelta(day + 1),
             selected_days_human_index, start_hour, end_hour,
             aggregation="date_trunc('hour', {date})",
-            speed_type=speed_type
+            speed_computation_mode=SpeedComputationMode.GREATER_THAN_ZERO_IF_CLOSE_TO_STOP
         )
         if results is not None:
             results = pd.concat([results, day_results])

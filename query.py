@@ -1,12 +1,27 @@
 from datetime import datetime, date, timedelta
+from enum import Enum
 from typing import List
 
 import pandas as pd
 
 
+class SpeedComputationMode(Enum):
+    GREATER_THAN_ZERO = 1
+    GREATER_THAN_ZERO_IF_CLOSE_TO_STOP = 2
+    ALL = 3
+
+
+MAPPING_SPEED_COMPUTATION_MODE = {
+    SpeedComputationMode.GREATER_THAN_ZERO: "speed > 0",
+    SpeedComputationMode.GREATER_THAN_ZERO_IF_CLOSE_TO_STOP: "distanceFromPoint > 50 or speed > 0",
+    SpeedComputationMode.ALL: "speed >= 0"
+}
+
+
 def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_date: date,
                           max_date: date, selected_days_index: List[int], start_hour: int, end_hour: int,
-                          aggregation: str = "date_trunc('hour', {date})", speed_type=">") -> pd.DataFrame:
+                          aggregation: str = "date_trunc('hour', {date})",
+                          speed_computation_mode: SpeedComputationMode = SpeedComputationMode.ALL) -> pd.DataFrame:
     # selected days index is in human index, convert to database index (0 is sunday)
     selected_days = [i % 7 for i in selected_days_index]
 
@@ -29,6 +44,7 @@ def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_dat
         item.lineId as lineId,
         item.directionId as directionId,
         item.pointId as pointId,
+        item.distanceFromPoint as distanceFromPoint,
         item.distanceFromPoint - lag(item.distanceFromPoint) OVER (PARTITION BY item.pointId, item.directionId,item.lineId ORDER BY timestamp) AS distance_delta,
         (timestamp - lag(timestamp) OVER (PARTITION BY item.pointId, item.directionId, item.lineId ORDER BY timestamp)) as time_delta
     FROM filtered_entries
@@ -39,15 +55,18 @@ def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_dat
         lineId,
         directionId,
         pointId,
+        distanceFromPoint,
         (distance_delta / time_delta) as speed
         FROM deltaTable
         WHERe time_delta < 40 AND distance_delta < 600
     )
     SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp+7200)*1000000)")} as agg
     FROM speedTable
-    WHERE speed {speed_type} 0 
+    WHERE {MAPPING_SPEED_COMPUTATION_MODE[speed_computation_mode]}
     GROUP BY lineId, directionId, pointId, agg
     """
+
+    print(query)
 
     results = client.advanced_query(
         "stib_vehicle_distance",
