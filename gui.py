@@ -1,5 +1,7 @@
 import motion_lake_client
 import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt
 import streamlit as st
 
 from helpers import get_stops, build_results
@@ -12,6 +14,8 @@ stops = get_stops(client)
 # Metro lines 1, 2, 3, 5 are not used in the analysis
 line_ids_to_drop = ["1", "2", "3", "5"]
 stops = stops[~stops["lineId"].isin(line_ids_to_drop)]
+
+
 
 
 # Streamlit form for user inputs
@@ -46,9 +50,10 @@ def main():
                                  index=len(filtered_stops["stop_name"].values) - 1)
 
     start_stop_index = filtered_stops[filtered_stops["stop_name"] == start_stop_name].index[0]
-    end_stop_index = filtered_stops[filtered_stops["stop_name"] == end_stop_name].index[0]
+    end_stop_index = filtered_stops[filtered_stops["stop_name"] == end_stop_name].index[0] - 1
 
-    start_hour = st.number_input("Enter the start hour (0-23):", min_value=0, max_value=23)
+    st.write("The start and end hours are inclusive, meaning that if 7 is selected, it contains 7h00 to 7h59")
+    start_hour = st.number_input("Enter the start hour (0-23):", min_value=0, max_value=23, value=6)
     end_hour = st.number_input("Enter the end hour (0-23):", min_value=0, max_value=23, value=23)
     selected_days_human_index = st.multiselect("Enter days of the week selected days (1=Monday, ...): e.g 357",
                                                [1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 6, 7])
@@ -158,53 +163,54 @@ def main():
             concatenated_results.append(results)
 
             results_light = results[
-                ["count", "stop_name", "direction_stop_name", "next_stop_name", "date", "time", "speed"]]
+                ["count", "stop_name", "next_stop_name", "stop_sequence", "date", "time", "speed", ]]
 
             # Add a title
             st.subheader(f"Results for period {i + 1} ({selected_period_start} - {selected_period_end})")
 
+            st.text("""The time is computed using the speed and the length of the segment. As a reminder, 
+            the speed is computed using the evolution of the distance from the last stop 
+            and the time between two consecutive points.
+            """)
+
             # Display the results
             st.write(results_light)
 
-            # Compute abg speed and distance per stop_name and date
-            new_results = results.groupby(["stop_name", "date"]).agg(
+            # Create a plot with the average speed by hour
+            st.write("Average speed per hour of the day for the selected hours, days, and period:")
+            hourly_results = results[["date", "speed"]].copy()
+            hourly_results["h"] = pd.to_datetime(hourly_results["date"]).dt.hour
+            hourly_results = hourly_results.groupby("h").agg(
                 avg_speed=("speed", "mean"),
-                total_time=("time", "mean")
             ).reset_index()
+            st.bar_chart(hourly_results.set_index("h"))
 
-            # Now compute the avg speed and cumulative time per date
-            new_results = new_results.groupby("date").agg(
-                avg_speed=("avg_speed", "mean"),
-            ).reset_index()
-
-            st.write("Results per date:")
-            st.write(new_results)
-
-            # drop na/inf
-            # Plot
-            st.line_chart(new_results.set_index("date"))
-
-            # Now do the same but per stop_name (so avg speed per stop_name)
-            new_results = results.groupby("stop_name").agg(
+            # Now do the same but per stop_name and stop_sequence
+            new_results = results.groupby(["stop_sequence", "stop_name", "next_stop_name"]).agg(
                 avg_speed=("speed", "mean"),
                 total_time=("time", "mean")
             ).reset_index()
 
             st.write("Results per stop_name:")
             st.write(new_results)
-            st.write("Results per stop_name, avg speed")
-            st.line_chart(new_results.set_index("stop_name")[["avg_speed"]])
-            st.write("Results per stop_name, total time")
+            st.write("Results per stop_name, average speed in km/h, for the selected hours, days, and period")
+            # use matplotlib to plot the results
+            figure, ax = plt.subplots()
+            new_results.plot(x="stop_name", y="avg_speed", kind="bar", ax=ax)
+            st.pyplot(figure)
+            st.write(
+                "Results per stop_name, average time for the segment in seconds (distance/speed), for the selected hours, days, and period")
             new_results = new_results.replace([float('inf'), -float('inf')], float('nan'))
             # drop na
             new_results = new_results.dropna()
-            st.line_chart(new_results.set_index("stop_name")[["total_time"]])
+            figure, ax = plt.subplots()
+            new_results.plot(x="stop_name", y="total_time", kind="bar", ax=ax)
+            st.pyplot(figure)
 
             avg_speed_per_line = results.groupby(["stop_name", "geometry_y"]).agg(
                 avg_speed=("speed", "mean"),
             ).reset_index().rename(columns={"geometry_y": "geometry"})
-            import geopandas as gpd
-            import matplotlib.pyplot as plt
+
 
             figure, ax = plt.subplots()
             gdf = gpd.GeoDataFrame(avg_speed_per_line, geometry="geometry")
@@ -228,6 +234,21 @@ def main():
             st.write("Results per stop_name, one line per period")
 
             st.line_chart(new_results, x="stop_name", y="avg_speed", color="period")
+
+            # Group by hour and period, barplot
+            st.write("Average speed per hour of the day for the selected hours, days, and period:")
+            hourly_results = concatenated_results[["date", "speed", "period"]].copy()
+            hourly_results["h"] = pd.to_datetime(hourly_results["date"]).dt.hour
+            hourly_results = hourly_results.groupby(["h", "period"]).agg(
+                avg_speed=("speed", "mean"),
+            ).reset_index()
+
+            # Plot the results using matplotlib (barplot)
+            figure, ax = plt.subplots()
+            hourly_results.pivot(index="h", columns="period", values="avg_speed").plot(kind="bar", ax=ax)
+            st.pyplot(figure)
+
+
 
 
 if __name__ == "__main__":

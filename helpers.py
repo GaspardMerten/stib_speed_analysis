@@ -70,7 +70,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
                 excluded_periods]):
             continue
 
-        if (selected_period[0] + timedelta(day)).weekday() - 1 not in selected_days_human_index:
+        if (selected_period[0] + timedelta(day)).isoweekday() not in selected_days_human_index:
             continue
 
         day_results = get_average_speed_for(
@@ -81,6 +81,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
             aggregation="date_trunc('hour', {date})",
             speed_computation_mode=speed_computation_mode
         )
+        print(day_results)
         if results is not None:
             results = pd.concat([results, day_results])
         else:
@@ -88,6 +89,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
 
     # Convert pointId to integer
     results["pointId"] = results["pointId"].astype(int)
+
     # Merge the results with the selected_stops
     results = selected_stops.merge(results, left_on="stop_id", right_on="pointId")
 
