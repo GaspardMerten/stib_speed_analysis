@@ -52,7 +52,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
     # drop direction column
     segments = segments.drop(columns=["direction"])
     # Merge stops with segments
-    stops = stops.merge(segments, left_on=["next_stop_id", "lineId"], right_on=["start", "line_id"])
+    stops = stops.merge(segments, left_on=["stop_id", "lineId"], right_on=["start", "line_id"])
 
     # Print all stops for the selected line and direction, ask user to select index range
     stops = stops[stops["direction"] == direction_id].sort_values(by="stop_sequence").reset_index(drop=True)

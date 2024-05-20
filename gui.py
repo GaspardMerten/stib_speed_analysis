@@ -248,6 +248,10 @@ def main():
             hourly_results.pivot(index="h", columns="period", values="avg_speed").plot(kind="bar", ax=ax)
             st.pyplot(figure)
 
+            # Plot use st.line_chart to plot the results
+            st.line_chart(hourly_results, x="h", y="avg_speed", color="period")
+
+
 
 
 
