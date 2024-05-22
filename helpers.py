@@ -5,7 +5,7 @@ import geopandas
 import pandas as pd
 import streamlit as st
 
-from query import get_average_speed_for, SpeedComputationMode
+from query import get_average_speed_for
 
 
 @st.cache_data
@@ -38,7 +38,6 @@ def get_segments(_client, line_id, direction_id: int):
     segments_gdf = geopandas.GeoDataFrame.from_features(sh)
     segments_gdf = segments_gdf[(segments_gdf["line_id"] == line_id) & (segments_gdf["direction"] == direction_id + 1)]
     # change direction column to be the map direction
-    segments_gdf["direction"] = direction_id - 1
     segments_gdf["delta_distance"] = segments_gdf["distance"].diff()
 
     return segments_gdf
@@ -56,6 +55,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
 
     # Print all stops for the selected line and direction, ask user to select index range
     stops = stops[stops["direction"] == direction_id].sort_values(by="stop_sequence").reset_index(drop=True)
+
     selected_stops = stops.loc[start_stop_index:end_stop_index]
 
     stop_ids = [str(row["stop_id"]) for index, row in selected_stops.iterrows()]
@@ -81,7 +81,6 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
             aggregation="date_trunc('hour', {date})",
             speed_computation_mode=speed_computation_mode
         )
-        print(day_results)
         if results is not None:
             results = pd.concat([results, day_results])
         else:
