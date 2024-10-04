@@ -12,9 +12,8 @@ import streamlit as st
 from helpers import get_stops, build_results
 from query import SpeedComputationMode
 
-client = motion_lake_client.BaseClient("http://52.146.145.19:8000")
 
-stops = get_stops(client)
+stops = get_stops()
 contextily.set_cache_dir("/tmp/")
 
 # Metro lines 1, 2, 3, 5 are not used in the analysis
@@ -168,7 +167,7 @@ def main():
             try:
                 # Call your existing code with the provided inputs
                 results = build_results(
-                    client, stops, line_name, direction_name, selected_days_human_index, start_hour,
+                    stops, line_name, direction_name, selected_days_human_index, start_hour,
                     end_hour,
                     selected_period_start, selected_period_end, start_stop_index, end_stop_index,
                     excluded_periods,

@@ -1,8 +1,9 @@
-motion-lake-client==0.0.15
 pydantic
 streamlit~=1.33.0
 geopandas~=0.14.3
 pandas~=2.2.1
 plotly~=5.22.0
-matplotlib
-contextily
+matplotlib~=3.8.4
+contextily~=1.6.0
+duckdb
+requests~=2.31.0

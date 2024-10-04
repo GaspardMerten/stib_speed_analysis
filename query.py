@@ -1,8 +1,18 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, timezone
 from enum import Enum
+from io import BytesIO
 from typing import List
 
+import duckdb
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import requests
+
+
+def auth_request(*args, **kwargs):
+    return requests.get(*args, **kwargs, headers={
+        "Authorization": f"Bearer 42227799ae2e74ebc42ca66dee38f4352456c2e93a21962133e0056fd228392eecd70222df0a0c3882438acdfb59de933c50ef368cebb8f5ab8b19d3bd8d2134"})
 
 
 class SpeedComputationMode(Enum):
@@ -18,8 +28,8 @@ MAPPING_SPEED_COMPUTATION_MODE = {
 }
 
 
-def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_date: date,
-                          max_date: date, selected_days_index: List[int], start_hour: int, end_hour: int,
+def get_average_speed_for(line_id: str, points_tuple: List[str], min_date: datetime,
+                          max_date: datetime, selected_days_index: List[int], start_hour: int, end_hour: int,
                           aggregation: str = "date_trunc('hour', {date})",
                           speed_computation_mode: SpeedComputationMode = SpeedComputationMode.ALL) -> pd.DataFrame:
     # selected days index is in human index, convert to database index (0 is sunday)
@@ -27,10 +37,26 @@ def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_dat
 
     points = ", ".join(map(lambda x: f"'{x}'", points_tuple))
 
+    min_date_utc = int(datetime.combine(min_date, datetime.min.time()).replace(tzinfo=timezone.utc).timestamp())
+    max_date_utc = int(datetime.combine(max_date, datetime.min.time()).replace(tzinfo=timezone.utc).timestamp())
+
+    response = auth_request(
+        f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize"
+    ).json()
+
+    arrow_table = None
+
+    for url in response["results"]:
+        data = BytesIO(requests.get(url).content)
+        if arrow_table is None:
+            arrow_table = pq.read_table(data)
+        else:
+            arrow_table = pa.concat_tables([arrow_table, pq.read_table(data)])
+
     query = f"""WITH entries AS (
-        SELECT timestamp, unnest(data) as item
-        FROM [table] 
-        WHERE dayofweek(make_timestamp((timestamp+7200)*1000000)) IN ({', '.join(map(str, selected_days))}) AND hour(make_timestamp((timestamp+7200)*1000000)) >= {start_hour} AND hour(make_timestamp((timestamp+7200)*1000000)) <= {end_hour}
+        SELECT epoch(date)::int as timestamp, unnest(data) as item
+        FROM arrow_table 
+        WHERE timestamp >= {min_date_utc} AND timestamp <= {max_date_utc} AND extract(dow from date) in ({', '.join(map(str, selected_days))}) AND extract(hour from date) >= {start_hour} AND extract(hour from date) <= {end_hour}
     ), filtered_entries AS (
         SELECT 
             *,
@@ -60,22 +86,17 @@ def get_average_speed_for(client, line_id: str, points_tuple: List[str], min_dat
         FROM deltaTable
         WHERe time_delta < 40 AND distance_delta < 600
     )
-    SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp+7200)*1000000)")} as agg
+    SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp::bigint*1000000))")} as agg
     FROM speedTable
     WHERE {MAPPING_SPEED_COMPUTATION_MODE[speed_computation_mode]}
     GROUP BY lineId, directionId, pointId, agg
     """
 
-    print(query)
+    con = duckdb.connect()
+    results = con.execute(query).df()
+    columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
+    results.columns = columns
+    # convert date to local timezone
+    results["date"] = pd.to_datetime(results["date"]).dt.tz_convert("Europe/Brussels")
 
-    results = client.advanced_query(
-        "stib_vehicle_distance",
-        query,
-        datetime(min_date.year, min_date.month, min_date.day) - timedelta(hours=2),
-        datetime(max_date.year, max_date.month, max_date.day) + pd.Timedelta(days=1) - timedelta(hours=2),
-    )
-
-    return pd.DataFrame.from_records(
-        [x for x in results["results"]],
-        columns=["lineId", "directionId", "pointId", "speed", "count", "date"]
-    )
+    return results

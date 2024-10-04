@@ -1,16 +1,21 @@
-import json
 from datetime import timedelta
 
 import geopandas
 import pandas as pd
+import requests
 import streamlit as st
 
 from query import get_average_speed_for
 
 
+def auth_request(*args, **kwargs):
+    return requests.get(*args, **kwargs, headers={
+        "Authorization": f"Bearer 42227799ae2e74ebc42ca66dee38f4352456c2e93a21962133e0056fd228392eecd70222df0a0c3882438acdfb59de933c50ef368cebb8f5ab8b19d3bd8d2134"})
+
+
 @st.cache_data
-def get_stops(_client):
-    stops = json.loads(_client.get_last_item("stib_stops").data)
+def get_stops():
+    stops = auth_request("https://api.mobilitytwin.brussels/stib/stops").json()
     stops_gdf = geopandas.GeoDataFrame.from_features(stops)
     # Sort stops_gdf by route_short_name, direction, stop_sequence
     stops_gdf.sort_values(by=["route_short_name", "direction", "stop_sequence"], inplace=True)
@@ -32,10 +37,9 @@ def get_stops(_client):
 
 
 @st.cache_data
-def get_segments(_client, line_id, direction_id: int):
-    shapefile = _client.get_last_item("stib_segments")
-    sh = json.loads(shapefile.data)
-    segments_gdf = geopandas.GeoDataFrame.from_features(sh)
+def get_segments(line_id, direction_id: int):
+    shapefile = auth_request("https://api.mobilitytwin.brussels/stib/segments").json()
+    segments_gdf = geopandas.GeoDataFrame.from_features(shapefile)
     segments_gdf = segments_gdf[(segments_gdf["line_id"] == line_id) & (segments_gdf["direction"] == direction_id + 1)]
     # change direction column to be the map direction
     segments_gdf["delta_distance"] = segments_gdf["distance"].diff()
@@ -43,11 +47,11 @@ def get_segments(_client, line_id, direction_id: int):
     return segments_gdf
 
 
-def build_results(client, stops, line_name, direction_id, selected_days_human_index, start_hour, end_hour, start_date,
+def build_results(stops, line_name, direction_id, selected_days_human_index, start_hour, end_hour, start_date,
                   end_date, start_stop_index, end_stop_index, excluded_periods, speed_computation_mode):
-    all_stops = get_stops(client)
+    all_stops = get_stops()
 
-    segments = get_segments(client, line_name, direction_id)
+    segments = get_segments(line_name, direction_id)
     # drop direction column
     segments = segments.drop(columns=["direction"])
     # Merge stops with segments
@@ -74,7 +78,7 @@ def build_results(client, stops, line_name, direction_id, selected_days_human_in
             continue
 
         day_results = get_average_speed_for(
-            client, line_name, stop_ids,
+            line_name, stop_ids,
             selected_period[0] + timedelta(days=day),
             selected_period[0] + timedelta(day + 1),
             selected_days_human_index, start_hour, end_hour,
