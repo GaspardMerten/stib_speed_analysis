@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from io import BytesIO
 from typing import List
@@ -9,6 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
 
+# TODO: download all files matching before, then query them all at once
 
 def auth_request(*args, **kwargs):
     return requests.get(*args, **kwargs, headers={
@@ -28,8 +29,8 @@ MAPPING_SPEED_COMPUTATION_MODE = {
 }
 
 
-def get_average_speed_for(line_id: str, points_tuple: List[str], min_date: datetime,
-                          max_date: datetime, selected_days_index: List[int], start_hour: int, end_hour: int,
+def get_average_speed_for(line_id: str, points_tuple: List[str], date: datetime,
+                          selected_days_index: List[int], start_hour: int, end_hour: int,
                           aggregation: str = "date_trunc('hour', {date})",
                           speed_computation_mode: SpeedComputationMode = SpeedComputationMode.ALL) -> pd.DataFrame:
     # selected days index is in human index, convert to database index (0 is sunday)
@@ -37,22 +38,25 @@ def get_average_speed_for(line_id: str, points_tuple: List[str], min_date: datet
 
     points = ", ".join(map(lambda x: f"'{x}'", points_tuple))
 
-    min_date_utc = int(datetime.combine(min_date, datetime.min.time()).replace(tzinfo=timezone.utc).timestamp())
-    max_date_utc = int(datetime.combine(max_date, datetime.min.time()).replace(tzinfo=timezone.utc).timestamp())
-
+    min_date_utc = int(datetime.combine(date, datetime.min.time()).replace(tzinfo=timezone.utc).timestamp())
+    max_date_utc = int((datetime.combine(date, datetime.min.time()).replace(tzinfo=timezone.utc) + timedelta(
+        days=1) - timedelta(seconds=1)).timestamp())
+    print(datetime.combine(date, datetime.min.time()).replace(tzinfo=timezone.utc) + timedelta(
+        days=1))
     response = auth_request(
         f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize"
     ).json()
-
+    print(f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize")
     arrow_table = None
-
+    print(len(response["results"]))
+    print(response["results"])
     for url in response["results"]:
         data = BytesIO(requests.get(url).content)
         if arrow_table is None:
             arrow_table = pq.read_table(data)
         else:
             arrow_table = pa.concat_tables([arrow_table, pq.read_table(data)])
-
+    print("finished")
     query = f"""WITH entries AS (
         SELECT epoch(date)::int as timestamp, unnest(data) as item
         FROM arrow_table 
@@ -94,9 +98,10 @@ def get_average_speed_for(line_id: str, points_tuple: List[str], min_date: datet
 
     con = duckdb.connect()
     results = con.execute(query).df()
+    print(results)
     columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
     results.columns = columns
-    # convert date to local timezone
-    results["date"] = pd.to_datetime(results["date"]).dt.tz_convert("Europe/Brussels")
+    # convert date to local timezone (first set timezone to UTC, then convert to local timezone)
+    results["date"] = pd.to_datetime(results["date"]).dt.tz_localize("UTC").dt.tz_convert("Europe/Brussels")
 
     return results
