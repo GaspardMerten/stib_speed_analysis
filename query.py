@@ -1,7 +1,6 @@
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from io import BytesIO
 from typing import List
 
 import duckdb
@@ -74,8 +73,17 @@ def get_average_speed_for(
     for start, end in excluded_periods:
         filters &= (ds.field("date") < start) | (ds.field("date") > end)
 
+    fetched_bytes = []
+
+    print("Fetching data")
     for url in response["results"]:
-        data = BytesIO(requests.get(url).content)
+        print("Fetching", url)
+        content = requests.get(url).content
+        fetched_bytes.append(content)
+        print("Fetched", len(content) // 1024 // 1024, "MB")
+
+    print("Concatenating data")
+    for data in fetched_bytes:
         current_table = pq.read_table(
             data,
             filters=filters,
@@ -85,7 +93,7 @@ def get_average_speed_for(
             arrow_table = current_table
         else:
             arrow_table = pa.concat_tables([arrow_table, current_table])
-
+    print("Querying data")
     # print min date
     query = f"""WITH entries AS (
         SELECT (epoch((date))::int) as timestamp, unnest(data) as item, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
