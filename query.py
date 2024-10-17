@@ -41,16 +41,7 @@ utc_offset_seconds = -(time.altzone if is_dst else time.timezone)
 
 
 def cache_or_request(url: str):
-    os.makedirs(".cache", exist_ok=True)
-    key = hashlib.md5(url.encode()).hexdigest()
-    cache_path = ".cache/" + key + ".parquet"
-    try:
-        return open(cache_path, "rb").read()
-    except FileNotFoundError:
-        response = requests.get(url)
-        with open(cache_path, "wb") as f:
-            f.write(response.content)
-        return response.content
+    return requests.get(url).content
 
 
 def get_average_speed_for(
