@@ -1,3 +1,5 @@
+from datetime import timedelta, datetime
+
 import streamlit as st
 
 import text
@@ -54,7 +56,10 @@ def period_inputs():
         col1, col2 = st.columns([1, 1])
         with col1:
             start_input = col1.date_input(
-                f"Period {i + 1} - Start date", key=f"start_date_{i}"
+                f"Period {i + 1} - Start date",
+                key=f"start_date_{i}",
+                min_value=datetime(2023, 3, 1),
+                max_value=datetime.now() - timedelta(days=1),
             )
         with col2:
             end_input = col2.date_input(
