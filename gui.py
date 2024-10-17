@@ -29,6 +29,8 @@ SPEED_COLOR_RANGE = [
 
 
 def main():
+    st.title("STIB Mobility Twin")
+
     stops, line_ids = retrieve_stops_and_lines()
 
     defaults = {

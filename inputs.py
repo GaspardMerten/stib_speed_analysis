@@ -60,10 +60,15 @@ def period_inputs():
                 key=f"start_date_{i}",
                 min_value=datetime(2023, 3, 1),
                 max_value=datetime.now() - timedelta(days=1),
+                value=datetime.now() - timedelta(days=8),
             )
         with col2:
             end_input = col2.date_input(
-                f"Period {i + 1} - End date", key=f"end_date_{i}"
+                f"Period {i + 1} - End date",
+                key=f"end_date_{i}",
+                min_value=datetime(2023, 3, 1),
+                max_value=datetime.now() - timedelta(days=1),
+                value=datetime.now() - timedelta(days=1),
             )
         feature = (
             start_input,
