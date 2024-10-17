@@ -1,3 +1,6 @@
+import hashlib
+import logging
+import os
 import time
 from datetime import datetime
 from enum import Enum
@@ -9,9 +12,6 @@ import pyarrow as pa
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import requests
-
-
-# TODO: download all files matching before, then query them all at once
 
 
 def auth_request(*args, **kwargs):
@@ -38,6 +38,19 @@ MAPPING_SPEED_COMPUTATION_MODE = {
 
 is_dst = time.daylight and time.localtime().tm_isdst > 0
 utc_offset_seconds = -(time.altzone if is_dst else time.timezone)
+
+
+def cache_or_request(url: str):
+    os.makedirs(".cache", exist_ok=True)
+    key = hashlib.md5(url.encode()).hexdigest()
+    cache_path = ".cache/" + key + ".parquet"
+    try:
+        return open(cache_path, "rb").read()
+    except FileNotFoundError:
+        response = requests.get(url)
+        with open(cache_path, "wb") as f:
+            f.write(response.content)
+        return response.content
 
 
 def get_average_speed_for(
@@ -75,14 +88,14 @@ def get_average_speed_for(
 
     fetched_bytes = []
 
-    print("Fetching data")
+    logging.info("Fetching data")
     for url in response["results"]:
-        print("Fetching", url)
-        content = requests.get(url).content
+        logging.info("Fetching " + url)
+        content = cache_or_request(url)
         fetched_bytes.append(content)
-        print("Fetched", len(content) // 1024 // 1024, "MB")
+        logging.info("Fetched  " + str(len(content) // 1024 // 1024) + "MB")
 
-    print("Concatenating data")
+    logging.info("Concatenating data")
     for data in fetched_bytes:
         current_table = pq.read_table(
             pa.py_buffer(data),
@@ -92,13 +105,20 @@ def get_average_speed_for(
         if arrow_table is None:
             arrow_table = current_table
         else:
-            arrow_table = pa.concat_tables([arrow_table, current_table])
-    print("Querying data")
-    # print min date
+            try:
+                arrow_table = pa.concat_tables([arrow_table, current_table])
+            except Exception as e:
+                logging.error(e)
+                logging.info(
+                    "Error while concatenating tables" + ", ".join(response["results"])
+                )
+
+    logging.info("Querying data")
+
     query = f"""WITH entries AS (
         SELECT (epoch((date))::int) as timestamp, unnest(data) as item, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
         FROM arrow_table 
-        WHERE extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour}
+        WHERE extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))})  
     ), filtered_entries AS (
         SELECT 
             *,
@@ -136,10 +156,10 @@ def get_average_speed_for(
 
     con = duckdb.connect()
     results = con.execute(query).df()
-    print(results)
+    logging.info(results)
     columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
     results.columns = columns
-    # convert date to local timezone (first set timezone to UTC, then convert to local timezone)
+
     results["date"] = (
         pd.to_datetime(results["date"])
         .dt.tz_localize("UTC")
