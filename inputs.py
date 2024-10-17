@@ -58,17 +58,17 @@ def period_inputs():
             start_input = col1.date_input(
                 f"Period {i + 1} - Start date",
                 key=f"start_date_{i}",
+                value=datetime.now() - timedelta(days=8),
                 min_value=datetime(2023, 3, 1),
                 max_value=datetime.now() - timedelta(days=1),
-                value=datetime.now() - timedelta(days=8),
             )
         with col2:
             end_input = col2.date_input(
                 f"Period {i + 1} - End date",
                 key=f"end_date_{i}",
+                value=datetime.now() - timedelta(days=1),
                 min_value=datetime(2023, 3, 1),
                 max_value=datetime.now() - timedelta(days=1),
-                value=datetime.now() - timedelta(days=1),
             )
         feature = (
             start_input,
@@ -144,7 +144,7 @@ def line_and_direction_inputs(line_ids, stops):
     col1, col2 = st.columns([1, 2])
     # Input fields
     with col1:
-        line_name = col1.selectbox("Line", line_ids)
+        line_name = col1.selectbox("Line", line_ids, index=list(line_ids).index("60"))
     # Filter stops dataframe based on line selection
     filtered_stops = stops[stops["lineId"] == line_name]
     # Get unique directions for the selected line
