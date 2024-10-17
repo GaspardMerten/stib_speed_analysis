@@ -307,7 +307,7 @@ def display_results(end_segment_index, start_segment_index):
                     "avg_speed",
                     title="Average speed (km/h)",
                 ),
-                color=alt.Color("period", legend=None),
+                color=alt.Color("period"),
                 tooltip=["hour", "avg_speed"],
             )
         )
@@ -341,7 +341,7 @@ def display_results(end_segment_index, start_segment_index):
                         "avg_speed",
                         title="Average speed (km/h)",
                     ),
-                    color=alt.Color("period", legend=None),
+                    color=alt.Color("period"),
                     tooltip=["stop_name", "avg_speed"],
                 )
                 .properties(height=500)
