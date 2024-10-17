@@ -2,7 +2,6 @@ from datetime import timedelta
 
 import contextily
 import geopandas
-import pandas as pd
 import requests
 import streamlit as st
 
@@ -119,37 +118,18 @@ def build_results(
 
     selected_period = [start_date, end_date]
 
-    results = None
-
-    # iterate over each day of the selected period
-    for day in range((selected_period[1] - selected_period[0]).days + 1):
-        if any(
-            [
-                selected_period[0] <= excluded_period[0] <= selected_period[1]
-                for excluded_period in excluded_periods
-            ]
-        ):
-            continue
-
-        if (
-            selected_period[0] + timedelta(day)
-        ).isoweekday() not in selected_days_human_index:
-            continue
-
-        day_results = get_average_speed_for(
-            line_name,
-            stop_ids,
-            selected_period[0] + timedelta(days=day),
-            selected_days_human_index,
-            start_hour,
-            end_hour,
-            aggregation="date_trunc('hour', {date})",
-            speed_computation_mode=speed_computation_mode,
-        )
-        if results is not None:
-            results = pd.concat([results, day_results])
-        else:
-            results = day_results
+    results = get_average_speed_for(
+        line_name,
+        stop_ids,
+        selected_period[0],
+        selected_period[1],
+        excluded_periods,
+        selected_days_human_index,
+        start_hour,
+        end_hour,
+        aggregation="date_trunc('hour', {date})",
+        speed_computation_mode=speed_computation_mode,
+    )
 
     # Convert pointId to integer
     results["pointId"] = results["pointId"].astype(int)

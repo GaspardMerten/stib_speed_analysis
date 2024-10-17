@@ -38,7 +38,7 @@ SPEED = """
         The first one is the most pessimistic, the last one is the most optimistic.<br><br>
     """
 
-COLOR_BAR = """<div style="display: flex; width: 100%; height: 30px; border: 1px solid #000; border-radius: 5px; overflow: hidden;">
+COLOR_BAR = """<div style="display: flex; margin-y: 10px; width: 100%; height: 30px; border: 1px solid #000; border-radius: 5px; overflow: hidden;">
   <div style="flex: 1; background-color: rgb(255, 0, 0); display: flex; align-items: center; justify-content: center; color: white;">
     0-6: Red
   </div>

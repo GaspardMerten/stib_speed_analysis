@@ -1,10 +1,9 @@
 import json
-import traceback
 from datetime import datetime
 from typing import Any
 
+import altair as alt
 import geopandas as gpd
-import matplotlib.pyplot as plt
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
@@ -17,6 +16,16 @@ from helpers import build_results, retrieve_stops_and_lines
 def _set_default(key: str, value: Any):
     if key not in st.session_state:
         setattr(st.session_state, key, value)
+
+
+SPEED_COLOR_DOMAIN = [6, 9, 12, 18]
+SPEED_COLOR_RANGE = [
+    "#ff0000",
+    "#ffa500",
+    "#90ee90",
+    "#006400",
+    "#8b4500",
+]
 
 
 def main():
@@ -123,6 +132,7 @@ def display_results(end_segment_index, start_segment_index):
         tab_chart, tab_data = st.tabs(["📈 Chart", "🗃 Data"])
 
         with tab_chart:
+            color_bar()
             # Average speed per hour.
             tab_chart.markdown("Average speed/hour for the selected segment.")
             hourly_results = results[["date", "speed"]].copy()
@@ -132,13 +142,46 @@ def display_results(end_segment_index, start_segment_index):
                 .agg(avg_speed=("speed", "mean"))
                 .reset_index()
             )
-            tab_chart.bar_chart(avg_speed_per_hour.set_index("hour"))
+            # equivalent with altair
+            chart = (
+                alt.Chart(avg_speed_per_hour)
+                .mark_bar()
+                .encode(
+                    x=alt.X("hour", title="Hour", type="ordinal"),
+                    y=alt.Y(
+                        "avg_speed",
+                        title="Average speed (km/h)",
+                    ),
+                    color=alt.Color("avg_speed", legend=None).scale(
+                        domain=SPEED_COLOR_DOMAIN, range=SPEED_COLOR_RANGE
+                    ),
+                    tooltip=["hour", "avg_speed"],
+                )
+            )
+
+            tab_chart.altair_chart(chart, use_container_width=True)
 
             # Average speed per interstop.
             tab_chart.markdown("Average speed per interstop for the selected period.")
-            fig, ax = plt.subplots()
-            aggregated_results.plot(x="segment", y="avg_speed", kind="bar", ax=ax)
-            tab_chart.pyplot(fig)
+
+            chart = (
+                alt.Chart(aggregated_results)
+                .mark_bar()
+                .encode(
+                    x=alt.X("segment", title="Segment", sort=None),
+                    y=alt.Y(
+                        "avg_speed",
+                        title="Average speed (km/h)",
+                    ),
+                    color=alt.Color("avg_speed", legend=None).scale(
+                        domain=SPEED_COLOR_DOMAIN, range=SPEED_COLOR_RANGE
+                    ),
+                    tooltip=["segment", "avg_speed"],
+                )
+                .properties(height=500)
+            )
+
+            tab_chart.altair_chart(chart, use_container_width=True)
 
             # Map of average speed per interstop.
             tab_chart.markdown("Average speed per interstop (Map).")
@@ -156,9 +199,27 @@ def display_results(end_segment_index, start_segment_index):
             aggregated_results = aggregated_results.replace(
                 [float("inf"), -float("inf")], float("nan")
             ).dropna()
-            fig, ax = plt.subplots()
-            aggregated_results.plot(x="segment", y="total_time", kind="bar", ax=ax)
-            tab_chart.pyplot(fig)
+
+            # with altair
+            chart = (
+                alt.Chart(aggregated_results)
+                .mark_bar()
+                .encode(
+                    x=alt.X("segment", title="Segment", sort=None),
+                    y=alt.Y(
+                        "total_time",
+                        title="Average time (s)",
+                    ),
+                    color=alt.Color(
+                        "total_time", legend=None, scale=alt.Scale(scheme="teals")
+                    ),
+                    tooltip=["segment", "total_time"],
+                )
+                .properties(height=500)
+            )
+
+            tab_chart.altair_chart(chart, use_container_width=True)
+
             tab_chart.divider()
 
         with tab_data:
@@ -181,6 +242,8 @@ def display_results(end_segment_index, start_segment_index):
     if st.session_state.periods_results and selected_period == "Comparison between all":
         st.header("Results for All Periods")
 
+        color_bar()
+
         # Concatenate results and assign period numbers.
         concatenated_results = pd.concat(
             [
@@ -190,7 +253,7 @@ def display_results(end_segment_index, start_segment_index):
         )
 
         # Average speed per hour across periods.
-        st.subheader("Average speed/hour for the selected segment across all periods.")
+        st.subheader("Average speed/hour for all segments for all periods.")
         hourly_results = concatenated_results[["date", "speed", "period"]].copy()
         hourly_results["hour"] = pd.to_datetime(hourly_results["date"]).dt.hour
         avg_speed_per_hour = (
@@ -199,15 +262,51 @@ def display_results(end_segment_index, start_segment_index):
             .reset_index()
         )
 
-        # Plot the average speed using matplotlib.
-        fig, ax = plt.subplots()
-        avg_speed_per_hour.pivot(
-            index="hour", columns="period", values="avg_speed"
-        ).plot(kind="bar", ax=ax)
-        st.pyplot(fig)
+        # compute number of hours
+        number_of_periods = len(st.session_state.periods_results)
 
-        # Line chart of average speed per hour.
-        st.line_chart(avg_speed_per_hour, x="hour", y="avg_speed", color="period")
+        space_per_bar = 20 / (number_of_periods)
+        space_per_hour = 704 / len(avg_speed_per_hour["hour"].unique())
+
+        # equivalent with altair
+        chart = (
+            alt.Chart(avg_speed_per_hour)
+            .mark_bar(size=space_per_bar)
+            .encode(
+                x=alt.X("period:N", title="Hour", type="ordinal"),
+                y=alt.Y(
+                    "avg_speed:Q",
+                    title="Average speed (km/h)",
+                ),
+                column=alt.Column("hour:N", title="Period"),
+                color=alt.Color("avg_speed", legend=None).scale(
+                    domain=SPEED_COLOR_DOMAIN,
+                    range=SPEED_COLOR_RANGE,
+                ),
+                tooltip=["hour", "avg_speed"],
+            )
+            .configure_view(stroke="transparent")
+            .properties(width=space_per_hour)
+            .configure_facet(spacing=1)
+        )
+
+        st.altair_chart(chart, use_container_width=False)
+        # Equivalent with altair
+        chart = (
+            alt.Chart(avg_speed_per_hour)
+            .mark_line()
+            .encode(
+                x=alt.X("hour", title="Hour", type="ordinal"),
+                y=alt.Y(
+                    "avg_speed",
+                    title="Average speed (km/h)",
+                ),
+                color=alt.Color("period", legend=None),
+                tooltip=["hour", "avg_speed"],
+            )
+        )
+
+        st.altair_chart(chart, use_container_width=True)
 
         # Average speed per interstop across periods.
         aggregated_results = (
@@ -226,9 +325,30 @@ def display_results(end_segment_index, start_segment_index):
                 aggregated_results, x="stop_name", y="avg_speed", color="period"
             )
         else:
-            st.line_chart(
-                aggregated_results, x="stop_name", y="avg_speed", color="period"
+            # with altair
+            chart = (
+                alt.Chart(aggregated_results)
+                .mark_line()
+                .encode(
+                    x=alt.X("stop_name", title="Segment", sort=None),
+                    y=alt.Y(
+                        "avg_speed",
+                        title="Average speed (km/h)",
+                    ),
+                    color=alt.Color("period", legend=None),
+                    tooltip=["stop_name", "avg_speed"],
+                )
+                .properties(height=500)
             )
+
+            st.altair_chart(chart, use_container_width=True)
+
+
+def color_bar():
+    st.markdown(
+        text.COLOR_BAR,
+        unsafe_allow_html=True,
+    )
 
 
 def plot_map(speed_map):
@@ -261,10 +381,6 @@ def plot_map(speed_map):
     )
     deck.to_html("out.html")
     st.pydeck_chart(deck)
-    st.markdown(
-        text.COLOR_BAR,
-        unsafe_allow_html=True,
-    )
 
 
 def fetch_and_compute(
