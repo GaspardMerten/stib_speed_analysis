@@ -85,7 +85,7 @@ def get_average_speed_for(
     print("Concatenating data")
     for data in fetched_bytes:
         current_table = pq.read_table(
-            data,
+            pa.py_buffer(data),
             filters=filters,
         )
 
