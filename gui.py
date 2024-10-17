@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any
 
@@ -18,14 +19,16 @@ def _set_default(key: str, value: Any):
         setattr(st.session_state, key, value)
 
 
-SPEED_COLOR_DOMAIN = [6, 9, 12, 18]
+SPEED_COLOR_DOMAIN = [6, 9, 12, 18, 60]
 SPEED_COLOR_RANGE = [
-    "#ff0000",
-    "#ffa500",
-    "#90ee90",
-    "#006400",
-    "#8b4500",
+    "rgb(255, 0, 0)",  # Red for 0-6
+    "rgb(139, 69, 0)",  # Dark Orange for 6-9
+    "rgb(255, 165, 0)",  # Orange for 9-12
+    "rgb(144, 238, 144)",  # Light Green for 12-18
+    "rgb(0, 100, 0)",  # Dark Green for >18
 ]
+
+logging.basicConfig(level=logging.INFO)
 
 
 def main():
@@ -154,7 +157,9 @@ def display_results(end_segment_index, start_segment_index):
                         title="Average speed (km/h)",
                     ),
                     color=alt.Color("avg_speed", legend=None).scale(
-                        domain=SPEED_COLOR_DOMAIN, range=SPEED_COLOR_RANGE
+                        domain=SPEED_COLOR_DOMAIN,
+                        range=SPEED_COLOR_RANGE,
+                        type="threshold",
                     ),
                     tooltip=["hour", "avg_speed"],
                 )

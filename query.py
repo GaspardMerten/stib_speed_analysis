@@ -1,6 +1,4 @@
-import hashlib
 import logging
-import os
 import time
 from datetime import datetime
 from enum import Enum
@@ -72,89 +70,76 @@ def get_average_speed_for(
         f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize"
     ).json()
 
-    arrow_table = None
-    filters = (ds.field("date") >= start_date) & (ds.field("date") <= end_date)
-    for start, end in excluded_periods:
-        filters &= (ds.field("date") < start) | (ds.field("date") > end)
+    results = []
 
-    fetched_bytes = []
-
-    logging.info("Fetching data")
     for url in response["results"]:
-        logging.info("Fetching " + url)
-        content = cache_or_request(url)
-        fetched_bytes.append(content)
-        logging.info("Fetched  " + str(len(content) // 1024 // 1024) + "MB")
+        try:
+            data = cache_or_request(url)
 
-    logging.info("Concatenating data")
-    for data in fetched_bytes:
-        current_table = pq.read_table(
-            pa.py_buffer(data),
-            filters=filters,
-        )
+            filters = (ds.field("date") >= start_date) & (ds.field("date") <= end_date)
+            for start, end in excluded_periods:
+                filters &= (ds.field("date") < start) | (ds.field("date") > end)
 
-        if arrow_table is None:
-            arrow_table = current_table
-        else:
-            try:
-                arrow_table = pa.concat_tables([arrow_table, current_table])
-            except Exception as e:
-                logging.error(e)
-                logging.info(
-                    "Error while concatenating tables" + ", ".join(response["results"])
-                )
+            # noinspection PyUnusedLocal
+            arrow_table = pq.read_table(
+                pa.py_buffer(data),
+                filters=filters,
+            )
+            logging.info("Querying data")
 
-    logging.info("Querying data")
+            query = f"""WITH entries AS (
+                SELECT (epoch((date))::int) as timestamp, unnest(data) as item, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
+                FROM arrow_table 
+                WHERE extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))})  
+            ), filtered_entries AS (
+                SELECT 
+                    *,
+                    ROW_NUMBER() OVER (PARTITION BY item.directionId, item.pointId, timestamp ORDER BY timestamp) as row_num
+                FROM entries
+                WHERE 
+                item.lineId = '{line_id}' AND item.pointId IN ({points}) 
+            ), deltaTable as (
+            SELECT 
+                timestamp,
+                item.lineId as lineId,
+                item.directionId as directionId,
+                item.pointId as pointId,
+                item.distanceFromPoint as distanceFromPoint,
+                item.distanceFromPoint - lag(item.distanceFromPoint) OVER (PARTITION BY item.pointId, item.directionId,item.lineId ORDER BY timestamp) AS distance_delta,
+                (timestamp - lag(timestamp) OVER (PARTITION BY item.pointId, item.directionId, item.lineId ORDER BY timestamp)) as time_delta
+            FROM filtered_entries
+            WHERE row_num = 1
+            ), speedTable as (
+            SELECT 
+               timestamp,
+                lineId,
+                directionId,
+                pointId,
+                distanceFromPoint,
+                (distance_delta / time_delta) as speed
+                FROM deltaTable
+                WHERe time_delta < 40 AND distance_delta < 600
+            )
+            SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp::bigint*1000000))")} as agg
+            FROM speedTable
+            WHERE {MAPPING_SPEED_COMPUTATION_MODE[speed_computation_mode]}
+            GROUP BY lineId, directionId, pointId, agg
+            """
 
-    query = f"""WITH entries AS (
-        SELECT (epoch((date))::int) as timestamp, unnest(data) as item, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
-        FROM arrow_table 
-        WHERE extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))})  
-    ), filtered_entries AS (
-        SELECT 
-            *,
-            ROW_NUMBER() OVER (PARTITION BY item.directionId, item.pointId, timestamp ORDER BY timestamp) as row_num
-        FROM entries
-        WHERE 
-        item.lineId = '{line_id}' AND item.pointId IN ({points}) 
-    ), deltaTable as (
-    SELECT 
-        timestamp,
-        item.lineId as lineId,
-        item.directionId as directionId,
-        item.pointId as pointId,
-        item.distanceFromPoint as distanceFromPoint,
-        item.distanceFromPoint - lag(item.distanceFromPoint) OVER (PARTITION BY item.pointId, item.directionId,item.lineId ORDER BY timestamp) AS distance_delta,
-        (timestamp - lag(timestamp) OVER (PARTITION BY item.pointId, item.directionId, item.lineId ORDER BY timestamp)) as time_delta
-    FROM filtered_entries
-    WHERE row_num = 1
-    ), speedTable as (
-    SELECT 
-       timestamp,
-        lineId,
-        directionId,
-        pointId,
-        distanceFromPoint,
-        (distance_delta / time_delta) as speed
-        FROM deltaTable
-        WHERe time_delta < 40 AND distance_delta < 600
-    )
-    SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp::bigint*1000000))")} as agg
-    FROM speedTable
-    WHERE {MAPPING_SPEED_COMPUTATION_MODE[speed_computation_mode]}
-    GROUP BY lineId, directionId, pointId, agg
-    """
+            con = duckdb.connect()
+            results.append(con.execute(query).df())
+        except Exception as e:
+            logging.error(f"Error while processing {url}: {e}")
 
-    con = duckdb.connect()
-    results = con.execute(query).df()
-    logging.info(results)
+    results_df = pd.concat(results)
+
     columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
-    results.columns = columns
+    results_df.columns = columns
 
-    results["date"] = (
-        pd.to_datetime(results["date"])
+    results_df["date"] = (
+        pd.to_datetime(results_df["date"])
         .dt.tz_localize("UTC")
         .dt.tz_convert("Europe/Brussels")
     )
 
-    return results
+    return results_df
