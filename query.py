@@ -1,4 +1,6 @@
+import hashlib
 import logging
+import os
 import time
 from datetime import datetime
 from enum import Enum
@@ -39,7 +41,16 @@ utc_offset_seconds = -(time.altzone if is_dst else time.timezone)
 
 
 def cache_or_request(url: str):
-    return requests.get(url).content
+    os.makedirs(".cache", exist_ok=True)
+    md5 = hashlib.md5(url.encode()).hexdigest()
+    path = f".cache/{md5}"
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return f.read()
+    data = requests.get(url).content
+    with open(path, "wb") as f:
+        f.write(data)
+    return data
 
 
 def get_average_speed_for(
