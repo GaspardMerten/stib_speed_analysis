@@ -231,12 +231,25 @@ def display_results(end_segment_index, start_segment_index):
         with tab_data:
             tab_data.markdown(text.RAW_DATA)
             tab_data.dataframe(
-                results_light[["segment", "date", "count", "time", "speed"]],
-                width=1000,
+                results_light[
+                    [
+                        "count",
+                        "stop_name",
+                        "prev_stop_name",
+                        "segment",
+                        "stop_sequence",
+                        "date",
+                        "time",
+                        "speed",
+                    ]
+                ],
                 column_config={
                     "speed": "Speed (km/h)",
-                    "time": "Time (s)",
+                    "prev_stop_name": "Previous Stop",
+                    "stop_name": "Stop",
+                    "time": "Time (s) (interstop length / speed)",
                     "date": "Date",
+                    "stop_sequence": "Stop Sequence",
                     "count": "Count",
                     "segment": "Segment",
                 },

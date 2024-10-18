@@ -127,7 +127,7 @@ def build_results(
         selected_days_human_index,
         start_hour,
         end_hour,
-        aggregation="date_trunc('hour', {date})",
+        # aggregation="date_trunc('hour', {date})",
         speed_computation_mode=speed_computation_mode,
     )
 

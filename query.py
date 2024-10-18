@@ -62,7 +62,7 @@ def get_average_speed_for(
     selected_days_index: List[int],
     start_hour: int,
     end_hour: int,
-    aggregation: str = "date_trunc('hour', {date})",
+    aggregation: str = "date_trunc('minute',  {date}) - (EXTRACT(minute FROM {date}) % 15) * INTERVAL '1 minute'",
     speed_computation_mode: SpeedComputationMode = SpeedComputationMode.ALL,
 ) -> pd.DataFrame:
     # selected days index is in human index, convert to database index (0 is sunday)
