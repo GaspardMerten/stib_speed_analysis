@@ -52,7 +52,7 @@ def period_inputs():
         "period, then the results will be displayed together for quick comparison.*\n"
     )
     st.info(
-        "Data is available from 2023-02-25 to today, to the exception of the 2024-07-11 to 2024-08-22 period which is "
+        "Data is available from 2023-02-25 to today, to the exception of the 2024-07-11 to 2024-08-11 period which is "
         "not available.",
     )
     # the same but allow to add multiple periods

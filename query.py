@@ -80,7 +80,7 @@ def get_average_speed_for(
     response = auth_request(
         f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize"
     ).json()
-
+    print(response)
     results = []
 
     for url in response["results"]:
@@ -101,14 +101,11 @@ def get_average_speed_for(
             query = f"""WITH entries AS (
                 SELECT (epoch((date))::int) as timestamp, unnest(data) as item, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
                 FROM arrow_table 
-                WHERE extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))})  
             ), filtered_entries AS (
                 SELECT 
                     *,
                     ROW_NUMBER() OVER (PARTITION BY item.directionId, item.pointId, timestamp ORDER BY timestamp) as row_num
                 FROM entries
-                WHERE 
-                item.lineId = '{line_id}' AND item.pointId IN ({points}) 
             ), deltaTable as (
             SELECT 
                 timestamp,
@@ -138,7 +135,8 @@ def get_average_speed_for(
             """
 
             con = duckdb.connect()
-            results.append(con.execute(query).df())
+            df = con.execute(query).df()
+            results.append(df)
         except Exception as e:
             logging.error(f"Error while processing {url}: {e}")
 
