@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+import time
 from datetime import datetime
 from typing import Any
 
@@ -29,6 +31,11 @@ SPEED_COLOR_RANGE = [
 ]
 
 logging.basicConfig(level=logging.INFO)
+
+
+# SET TIMEZONE AS Europe/Brussels
+os.environ["TZ"] = "Europe/Brussels"
+time.tzset()
 
 
 def main():

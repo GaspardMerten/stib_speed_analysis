@@ -73,7 +73,7 @@ def get_average_speed_for(
     start_datetime = datetime(
         start_date.year, start_date.month, start_date.day, start_hour
     )
-    end_datetime = datetime(end_date.year, end_date.month, end_date.day, end_hour)
+    end_datetime = datetime(end_date.year, end_date.month, end_date.day, end_hour, 59)
     min_date_utc = int(start_datetime.timestamp())
     max_date_utc = int(end_datetime.timestamp())
 
