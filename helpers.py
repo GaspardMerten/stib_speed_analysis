@@ -110,7 +110,7 @@ def build_results(
         .reset_index(drop=True)
     )
 
-    selected_stops = stops.loc[start_stop_index:end_stop_index]
+    selected_stops = stops.loc[start_stop_index : end_stop_index + 1]
 
     stop_ids = [str(row["stop_id"]) for index, row in selected_stops.iterrows()]
 
@@ -125,7 +125,6 @@ def build_results(
         selected_days_human_index,
         start_hour,
         end_hour,
-        # aggregation="date_trunc('hour', {date})",
         speed_computation_mode=speed_computation_mode,
     )
 
