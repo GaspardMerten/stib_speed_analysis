@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+import time
 from datetime import datetime
 from typing import Any
 
@@ -32,6 +34,9 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
+    os.environ["TZ"] = "Europe/Brussels"
+    time.tzset()
+
     st.set_page_config(page_title="STIB Speed Analysis")
     stops, line_ids = retrieve_stops_and_lines()
 
@@ -281,35 +286,6 @@ def display_results(end_segment_index, start_segment_index):
             .reset_index()
         )
 
-        # compute number of hours
-        number_of_periods = len(st.session_state.periods_results)
-
-        space_per_bar = 20 / (number_of_periods)
-        space_per_hour = 704 / len(avg_speed_per_hour["hour"].unique())
-
-        # equivalent with altair
-        chart = (
-            alt.Chart(avg_speed_per_hour)
-            .mark_bar(size=space_per_bar)
-            .encode(
-                x=alt.X("period:N", title="Hour", type="ordinal"),
-                y=alt.Y(
-                    "avg_speed:Q",
-                    title="Average speed (km/h)",
-                ),
-                column=alt.Column("hour:N", title="Period"),
-                color=alt.Color("avg_speed", legend=None).scale(
-                    domain=SPEED_COLOR_DOMAIN,
-                    range=SPEED_COLOR_RANGE,
-                ),
-                tooltip=["hour", "avg_speed"],
-            )
-            .configure_view(stroke="transparent")
-            .properties(width=space_per_hour)
-            .configure_facet(spacing=1)
-        )
-
-        st.altair_chart(chart, use_container_width=False)
         # Equivalent with altair
         chart = (
             alt.Chart(avg_speed_per_hour)

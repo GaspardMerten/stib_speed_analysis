@@ -33,7 +33,7 @@ def excluded_period_inputs():
             st.date_input("End date", key=f"excluded_end_date_{i}"),
         )
         excluded_periods.append(feature)
-    if st.button("Add new excluded period"):
+    if st.button("Add excluded period"):
         st.session_state.excluded_periods_count += 1
         # refresh the page
         st.rerun()
@@ -48,7 +48,12 @@ def excluded_period_inputs():
 
 def period_inputs():
     st.markdown(
-        "---\n*Please select the different periods you want to analyze, the average speed will be computed for each period, then the results will be displayed together for quick comparison.*\n"
+        "---\n*Please select the different periods you want to analyze, the average speed will be computed for each "
+        "period, then the results will be displayed together for quick comparison.*\n"
+    )
+    st.info(
+        "Data is available from 2023-02-25 to today, to the exception of the 2024-07-11 to 2024-08-22 period which is "
+        "not available.",
     )
     # the same but allow to add multiple periods
     periods = []
@@ -119,15 +124,16 @@ def segment_inputs(direction_id, filtered_stops):
         .reset_index(drop=True)
     )
     st.markdown(
-        "---\n*Please select the start and end segment. Note that segments between start and end are included.*\n"
+        "---\n*Please select the start and end segment. Note that segments between start and end are included, "
+        "for one single segment, select the same start and end.*\n"
     )
     start_segment_name = st.selectbox(
-        "Select the index of the start stop:",
+        "Select the index of the start segment:",
         filtered_stops["segment_name"].values,
         index=0,
     )
     stop_segment_name = st.selectbox(
-        "Select the index of the end stop:",
+        "Select the index of the end segment:",
         filtered_stops["segment_name"].values,
         index=len(filtered_stops["stop_name"].values) - 1,
     )

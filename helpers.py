@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import contextily
 import geopandas
 import requests
@@ -23,7 +21,7 @@ def retrieve_stops_and_lines():
     stops = get_stops()
     contextily.set_cache_dir("/tmp/")
     # Metro lines 1, 2, 3, 5 are not used in the analysis
-    line_ids_to_drop = ["1", "2", "3", "5"]
+    line_ids_to_drop = ["1", "2", "5", "6"]
     stops = stops[~stops["lineId"].isin(line_ids_to_drop)]
     # drop if line contains N
     stops = stops[~stops["lineId"].str.contains("N")]
