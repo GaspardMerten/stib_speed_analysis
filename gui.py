@@ -1,7 +1,5 @@
 import json
 import logging
-import os
-import time
 from datetime import datetime
 from typing import Any
 
@@ -14,9 +12,6 @@ import streamlit as st
 import inputs
 import text
 from helpers import build_results, retrieve_stops_and_lines
-
-os.environ["TZ"] = "Europe/Brussels"
-time.tzset()
 
 
 def _set_default(key: str, value: Any):

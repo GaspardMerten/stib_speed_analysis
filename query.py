@@ -83,6 +83,10 @@ def get_average_speed_for(
 
     results = []
 
+    logging.info(
+        start_datetime, end_datetime, min_date_utc, max_date_utc, utc_offset_seconds
+    )
+
     for url in response["results"]:
         try:
             data = cache_or_request(url)
