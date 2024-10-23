@@ -1,16 +1,11 @@
-import hashlib
 import logging
-import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import List
 
 import duckdb
 import pandas as pd
-import pyarrow as pa
-import pyarrow.dataset as ds
-import pyarrow.parquet as pq
 import requests
 
 
@@ -38,19 +33,6 @@ MAPPING_SPEED_COMPUTATION_MODE = {
 
 is_dst = time.daylight and time.localtime().tm_isdst > 0
 utc_offset_seconds = -(time.altzone if is_dst else time.timezone)
-
-
-def cache_or_request(url: str):
-    os.makedirs(".cache", exist_ok=True)
-    md5 = hashlib.md5(url.encode()).hexdigest()
-    path = f".cache/{md5}"
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            return f.read()
-    data = requests.get(url).content
-    with open(path, "wb") as f:
-        f.write(data)
-    return data
 
 
 def get_average_speed_for(
@@ -87,67 +69,65 @@ def get_average_speed_for(
         f"{start_datetime}, {end_datetime}, {min_date_utc}, {max_date_utc}, {utc_offset_seconds}"
     )
 
-    for url in response["results"]:
-        try:
-            data = cache_or_request(url)
+    WHERE_FOR_DATE_AND_EXCLUDED_PERIODS = (
+        f"(local_date >= '{start_date}' AND local_date <= '{end_date}') AND"
+        + " AND ".join(
+            [
+                f"(local_date <= '{start}' OR local_date >= '{end + timedelta(hours=23,minutes=50)}')"
+                for start, end in excluded_periods
+            ]
+        )
+    )
 
-            filters = (ds.field("date") >= start_datetime) & (
-                ds.field("date") <= end_datetime
-            )
-            for start, end in excluded_periods:
-                filters &= (ds.field("date") < start) | (ds.field("date") > end)
+    print(WHERE_FOR_DATE_AND_EXCLUDED_PERIODS)
 
-            # noinspection PyUnusedLocal
-            arrow_table = pq.read_table(
-                pa.py_buffer(data),
-                filters=filters,
-            )
-            logging.info("Querying data")
-
-            query = f"""WITH entries AS (
-                SELECT (epoch((date))::int) as timestamp, unnest(data) as item, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
-                FROM arrow_table 
-                WHERE extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))})  
-            ), filtered_entries AS (
-                SELECT 
-                    *,
-                    ROW_NUMBER() OVER (PARTITION BY item.directionId, item.pointId, timestamp ORDER BY timestamp) as row_num
-                FROM entries
-                WHERE 
-                item.lineId = '{line_id}' AND item.pointId IN ({points}) 
-            ), deltaTable as (
+    try:
+        query = f"""WITH entries AS (
+            SELECT (epoch((date))::int) as timestamp, unnest(data) as item, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
+            FROM read_parquet([{','.join(map(lambda x: f"'{x}'", response["results"]))}])
+            WHERE 
+            
+            extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))}) AND {WHERE_FOR_DATE_AND_EXCLUDED_PERIODS}  
+        ), filtered_entries AS (
             SELECT 
-                timestamp,
-                item.lineId as lineId,
-                item.directionId as directionId,
-                item.pointId as pointId,
-                item.distanceFromPoint as distanceFromPoint,
-                item.distanceFromPoint - lag(item.distanceFromPoint) OVER (PARTITION BY item.pointId, item.directionId,item.lineId ORDER BY timestamp) AS distance_delta,
-                (timestamp - lag(timestamp) OVER (PARTITION BY item.pointId, item.directionId, item.lineId ORDER BY timestamp)) as time_delta
-            FROM filtered_entries
-            WHERE row_num = 1
-            ), speedTable as (
-            SELECT 
-               timestamp,
-                lineId,
-                directionId,
-                pointId,
-                distanceFromPoint,
-                (distance_delta / time_delta) as speed
-                FROM deltaTable
-                WHERe time_delta < 40 AND distance_delta < 600
-            )
-            SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp::bigint*1000000))")} as agg
-            FROM speedTable
-            WHERE {MAPPING_SPEED_COMPUTATION_MODE[speed_computation_mode]}
-            GROUP BY lineId, directionId, pointId, agg
-            """
+                *,
+                ROW_NUMBER() OVER (PARTITION BY item.directionId, item.pointId, timestamp ORDER BY timestamp) as row_num
+            FROM entries
+            WHERE 
+            item.lineId = '{line_id}' AND item.pointId IN ({points}) 
+        ), deltaTable as (
+        SELECT 
+            timestamp,
+            item.lineId as lineId,
+            item.directionId as directionId,
+            item.pointId as pointId,
+            item.distanceFromPoint as distanceFromPoint,
+            item.distanceFromPoint - lag(item.distanceFromPoint) OVER (PARTITION BY item.pointId, item.directionId,item.lineId ORDER BY timestamp) AS distance_delta,
+            (timestamp - lag(timestamp) OVER (PARTITION BY item.pointId, item.directionId, item.lineId ORDER BY timestamp)) as time_delta
+        FROM filtered_entries
+        WHERE row_num = 1
+        ), speedTable as (
+        SELECT 
+           timestamp,
+            lineId,
+            directionId,
+            pointId,
+            distanceFromPoint,
+            (distance_delta / time_delta) as speed
+            FROM deltaTable
+            WHERe time_delta < 40 AND distance_delta < 600
+        )
+        SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, {aggregation.format(date="make_timestamp((timestamp::bigint*1000000))")} as agg
+        FROM speedTable
+        WHERE {MAPPING_SPEED_COMPUTATION_MODE[speed_computation_mode]}
+        GROUP BY lineId, directionId, pointId, agg
+        """
 
-            con = duckdb.connect()
-            df = con.execute(query).df()
-            results.append(df)
-        except Exception as e:
-            logging.error(f"Error while processing {url}: {e}")
+        con = duckdb.connect()
+        df = con.execute(query).df()
+        results.append(df)
+    except Exception as e:
+        logging.error(f"Error while processing: {e}")
 
     results_df = pd.concat(results)
 
