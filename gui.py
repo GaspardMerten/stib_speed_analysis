@@ -15,6 +15,9 @@ import inputs
 import text
 from helpers import build_results, retrieve_stops_and_lines
 
+os.environ["TZ"] = "Europe/Brussels"
+time.tzset()
+
 
 def _set_default(key: str, value: Any):
     if key not in st.session_state:
@@ -34,8 +37,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
-    os.environ["TZ"] = "Europe/Brussels"
-    time.tzset()
 
     st.set_page_config(page_title="STIB Speed Analysis")
     stops, line_ids = retrieve_stops_and_lines()
