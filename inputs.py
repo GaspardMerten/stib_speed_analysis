@@ -37,7 +37,7 @@ def excluded_period_inputs():
         st.session_state.excluded_periods_count += 1
         # refresh the page
         st.rerun()
-    if st.session_state.excluded_periods_count > 1 and st.button(
+    if st.session_state.excluded_periods_count > 0 and st.button(
         "Remove last excluded period"
     ):
         st.session_state.excluded_periods_count -= 1
@@ -52,7 +52,7 @@ def period_inputs():
         "period, then the results will be displayed together for quick comparison.*\n"
     )
     st.info(
-        "Data is available from 2023-02-25 to today, to the exception of the 2024-07-11 to 2024-08-11 period which is "
+        "Data is available from 2023-02-25 to today, to the exception of the 2024-07-01 to 2024-08-11 period which is "
         "not available.",
     )
     # the same but allow to add multiple periods
@@ -64,7 +64,7 @@ def period_inputs():
                 f"Period {i + 1} - Start date",
                 key=f"start_date_{i}",
                 value=datetime.now() - timedelta(days=8),
-                min_value=datetime(2023, 3, 1),
+                min_value=datetime(2023, 2, 27),
                 max_value=datetime.now() - timedelta(days=1),
             )
         with col2:
@@ -72,7 +72,7 @@ def period_inputs():
                 f"Period {i + 1} - End date",
                 key=f"end_date_{i}",
                 value=datetime.now() - timedelta(days=1),
-                min_value=datetime(2023, 3, 1),
+                min_value=datetime(2023, 2, 1),
                 max_value=datetime.now() - timedelta(days=1),
             )
         feature = (

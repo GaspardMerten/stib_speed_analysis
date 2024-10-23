@@ -100,7 +100,7 @@ def build_results(
     segments = segments.drop(columns=["direction"])
     # Merge stops with segments
     stops = stops.merge(
-        segments, left_on=["stop_id", "lineId"], right_on=["start", "line_id"]
+        segments, left_on=["prev_stop_id", "lineId"], right_on=["start", "line_id"]
     )
 
     # Print all stops for the selected line and direction, ask user to select index range
@@ -112,7 +112,7 @@ def build_results(
 
     selected_stops = stops.loc[start_stop_index : end_stop_index + 1]
 
-    stop_ids = [str(row["stop_id"]) for index, row in selected_stops.iterrows()]
+    stop_ids = [str(row["prev_stop_id"]) for index, row in selected_stops.iterrows()]
 
     selected_period = [start_date, end_date]
 
@@ -133,7 +133,7 @@ def build_results(
 
     # Merge the results with the selected_stops
     results = selected_stops.merge(
-        results, left_on="stop_id", right_on="pointId", how="right"
+        results, left_on="prev_stop_id", right_on="pointId", how="right"
     )
     results.to_csv("results.csv")
 
