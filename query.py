@@ -1,12 +1,12 @@
 import logging
-import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from enum import Enum
 from typing import List
 
 import duckdb
 import pandas as pd
 import requests
+from dateutil import tz
 
 
 def auth_request(*args, **kwargs):
@@ -31,8 +31,10 @@ MAPPING_SPEED_COMPUTATION_MODE = {
     SpeedComputationMode.ALL: "speed >= 0",
 }
 
-is_dst = time.daylight and time.localtime().tm_isdst > 0
-utc_offset_seconds = -(time.altzone if is_dst else time.timezone)
+# Get current difference between UTC and Europe/Brussels
+utc_time = datetime.now(tz=UTC).replace(tzinfo=None)
+brussels_time = datetime.now(tz=tz.gettz("Europe/Brussels")).replace(tzinfo=None)
+utc_offset_seconds = int((brussels_time - utc_time).total_seconds())
 
 
 def get_average_speed_for(
@@ -56,6 +58,9 @@ def get_average_speed_for(
         start_date.year, start_date.month, start_date.day, start_hour
     )
     end_datetime = datetime(end_date.year, end_date.month, end_date.day, end_hour, 59)
+
+    # Convert to EU timezone
+
     min_date_utc = int(start_datetime.timestamp())
     max_date_utc = int(end_datetime.timestamp())
 
