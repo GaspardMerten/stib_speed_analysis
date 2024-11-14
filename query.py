@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime, timedelta, UTC
 from enum import Enum
@@ -6,6 +7,7 @@ from typing import List
 import duckdb
 import pandas as pd
 import requests
+import requests.utils
 from dateutil import tz
 
 
@@ -64,8 +66,10 @@ def get_average_speed_for(
     min_date_utc = int(start_datetime.timestamp())
     max_date_utc = int(end_datetime.timestamp())
 
+    keys = {"lineId": line_id}
+    keys_url = requests.utils.quote(json.dumps(keys))
     response = auth_request(
-        f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize"
+        f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize&keys={keys_url}"
     ).json()
     print(response)
     logging.info(
@@ -80,7 +84,7 @@ def get_average_speed_for(
         WHERE_FOR_DATE_AND_EXCLUDED_PERIODS += " AND "
         WHERE_FOR_DATE_AND_EXCLUDED_PERIODS += " AND ".join(
             [
-                f"(local_date <= '{start_date}' OR local_date >= '{end + timedelta(hours=23,minutes=50)}')"
+                f"(local_date <= '{start_date}' OR local_date >= '{end + timedelta(hours=23, minutes=50)}')"
                 for start, end in excluded_periods
             ]
         )
@@ -89,7 +93,7 @@ def get_average_speed_for(
         SELECT (epoch((date))::int) as timestamp, lineId,pointId,directionId,distanceFromPoint, (date + INTERVAL '{utc_offset_seconds} seconds') as local_date
         FROM read_parquet([{','.join(map(lambda x: f"'{x}'", response["results"]))}])
         WHERE lineId = '{line_id}' AND pointId IN ({points}) AND
-        
+
         extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))}) AND {WHERE_FOR_DATE_AND_EXCLUDED_PERIODS}  
     ), filtered_entries AS (
         SELECT 
