@@ -24,9 +24,10 @@ def _set_default(key: str, value: Any):
 SPEED_COLOR_DOMAIN = [6, 9, 12, 18, 60]
 SPEED_COLOR_RANGE = [
     "rgb(255, 0, 0)",  # Red for 0-6
-    "rgb(139, 69, 0)",  # Dark Orange for 6-9
-    "rgb(255, 165, 0)",  # Orange for 9-12
-    "rgb(144, 238, 144)",  # Light Green for 12-18
+    "rgb(255, 145, 0)",  # Dark Orange for 6-9
+    "rgb(255, 204, 0)",  # Orange for 9-12
+    "rgb(144, 238, 144)",  # Light Green for 12-15
+    "rgb(50, 128, 50)",  # Light Green for 15-18
     "rgb(0, 100, 0)",  # Dark Green for >18
 ]
 
@@ -96,12 +97,18 @@ def main():
         display_results(end_segment_index, start_segment_index)
 
 
+@st.cache_data
+def convert_df(df):
+    return df.to_csv(index=False).encode("utf-8")
+
+
 def display_results(end_segment_index, start_segment_index):
-    # Add a divider and information about the analysis time.
     st.divider()
+    st.title("Results")
     st.markdown(
-        "The analysis is running. Depending on the selected periods, it may take from a few seconds to several minutes."
+        "Below are the results for the query you submitted. If you selected multiple periods, you can choose to display the results of the comparison, or of each period individually."
     )
+
     # Prepare a list of available periods.
     available_periods = [
         f"Period #{i + 1} ({st.session_state[f'start_date_{i}']} --> {st.session_state[f'end_date_{i}']})"
@@ -137,7 +144,7 @@ def display_results(end_segment_index, start_segment_index):
         # Display results for the selected period.
         st.subheader(f"Results for Period {i + 1} ({start_date} - {end_date})")
         st.markdown(
-            "Time is computed using speed and the length of the interstop. The speed is based on the distance evolution from the last stop and time between two consecutive points."
+            "Time is computed using speed and the length of the interstop . The speed is based on the distance evolution from the last stop and time between two consecutive points."
         )
 
         # Create tabs for the chart and data.
@@ -163,11 +170,7 @@ def display_results(end_segment_index, start_segment_index):
                     y=alt.Y(
                         "avg_speed",
                         title="Average speed (km/h)",
-                    ),
-                    color=alt.Color("avg_speed", legend=None).scale(
-                        domain=SPEED_COLOR_DOMAIN,
-                        range=SPEED_COLOR_RANGE,
-                        type="threshold",
+                        scale=alt.Scale(domain=[0, 20]),
                     ),
                     tooltip=["hour", "avg_speed"],
                 )
@@ -175,8 +178,8 @@ def display_results(end_segment_index, start_segment_index):
 
             tab_chart.altair_chart(chart, use_container_width=True)
 
-            # Average speed per interstop.
-            tab_chart.markdown("Average speed per interstop for the selected period.")
+            # Average speed per interstop .
+            tab_chart.markdown("Average speed per interstop  for the selected period.")
 
             chart = (
                 alt.Chart(aggregated_results)
@@ -186,9 +189,7 @@ def display_results(end_segment_index, start_segment_index):
                     y=alt.Y(
                         "avg_speed",
                         title="Average speed (km/h)",
-                    ),
-                    color=alt.Color("avg_speed", legend=None).scale(
-                        domain=SPEED_COLOR_DOMAIN, range=SPEED_COLOR_RANGE
+                        scale=alt.Scale(domain=[0, 20]),
                     ),
                     tooltip=["segment", "avg_speed"],
                 )
@@ -197,8 +198,8 @@ def display_results(end_segment_index, start_segment_index):
 
             tab_chart.altair_chart(chart, use_container_width=True)
 
-            # Map of average speed per interstop.
-            tab_chart.markdown("Average speed per interstop (Map).")
+            # Map of average speed per interstop .
+            tab_chart.markdown("Average speed per interstop  (Map).")
             speed_map = (
                 results.groupby(["stop_name", "geometry_y"])
                 .agg(avg_speed=("speed", "mean"))
@@ -208,8 +209,8 @@ def display_results(end_segment_index, start_segment_index):
 
             plot_map(speed_map)
 
-            # Average time per interstop.
-            tab_chart.markdown("Average time per interstop for the selected period.")
+            # Average time per interstop .
+            tab_chart.markdown("Average time per interstop  for the selected period.")
             aggregated_results = aggregated_results.replace(
                 [float("inf"), -float("inf")], float("nan")
             ).dropna()
@@ -255,12 +256,17 @@ def display_results(end_segment_index, start_segment_index):
                     "speed": "Speed (km/h)",
                     "prev_stop_name": "Previous Stop",
                     "stop_name": "Stop",
-                    "time": "Time (s) (interstop length / speed)",
+                    "time": "Time (s) (interstop  length / speed)",
                     "date": "Date",
                     "stop_sequence": "Stop Sequence",
                     "count": "Count",
                     "segment": "Segment",
                 },
+            )
+            tab_data.download_button(
+                "Download data as CSV",
+                convert_df(results_light),
+                f"results_{start_segment_index}_{end_segment_index}_{start_date}_{end_date}.csv",
             )
             tab_data.subheader("Results per stop_name:")
             tab_data.write(aggregated_results)
@@ -280,7 +286,7 @@ def display_results(end_segment_index, start_segment_index):
         )
 
         # Average speed per hour across periods.
-        st.subheader("Average speed/hour for all segments for all periods.")
+        st.subheader("Average speed/hour for the complete segment for each period.")
         hourly_results = concatenated_results[["date", "speed", "period"]].copy()
         hourly_results["hour"] = pd.to_datetime(hourly_results["date"]).dt.hour
         avg_speed_per_hour = (
@@ -298,6 +304,7 @@ def display_results(end_segment_index, start_segment_index):
                 y=alt.Y(
                     "avg_speed",
                     title="Average speed (km/h)",
+                    scale=alt.Scale(domain=[0, 20]),
                 ),
                 color=alt.Color("period"),
                 tooltip=["hour", "avg_speed"],
@@ -306,7 +313,7 @@ def display_results(end_segment_index, start_segment_index):
 
         st.altair_chart(chart, use_container_width=True)
 
-        # Average speed per interstop across periods.
+        # Average speed per interstop  across periods.
         aggregated_results = (
             concatenated_results.groupby(["stop_name", "period"])
             .agg(avg_speed=("speed", "mean"), total_time=("time", "mean"))
@@ -314,10 +321,10 @@ def display_results(end_segment_index, start_segment_index):
         )
 
         st.subheader(
-            "Average speed/interstop for the selected period across all periods."
+            "Average speed/interstop  for the selected period across all periods."
         )
 
-        # Plot results based on segment selection.
+        # Plot results based on interstop selection.
         if start_segment_index == end_segment_index:
             st.scatter_chart(
                 aggregated_results, x="stop_name", y="avg_speed", color="period"
@@ -361,8 +368,7 @@ def plot_map(speed_map):
         wireframe=True,
         auto_highlight=True,
         get_line_width=15,
-        get_line_color="""properties.avg_speed < 6 ? [255, 0, 0] : properties.avg_speed < 9 ? [139, 69, 0] : properties.avg_speed < 12 ? [255, 165, 0] : properties.avg_speed < 18 ? [144, 238, 144] : [0, 100, 0]
-                    """,
+        get_line_color="""properties.avg_speed < 6 ? [255, 0, 0] : properties.avg_speed < 9 ? [255, 145, 0] : properties.avg_speed < 12 ? [255, 204, 0] : properties.avg_speed < 15 ? [144, 238, 144] : properties.avg_speed < 18 ? [50, 128, 50] : [0, 100, 0]""",
     )
 
     deck = pdk.Deck(

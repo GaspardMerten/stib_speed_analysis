@@ -127,23 +127,29 @@ def build_results(
         end_hour,
         speed_computation_mode=speed_computation_mode,
     )
-
     # Convert pointId to integer
     results["pointId"] = results["pointId"].astype(int)
 
-    # Merge the results with the selected_stops
+    selected_stops.set_index("prev_stop_id", inplace=True, drop=False)
+    results.set_index("pointId", inplace=True)
     results = selected_stops.merge(
-        results, left_on="prev_stop_id", right_on="pointId", how="right"
+        results, left_index=True, right_index=True, how="right"
     )
-    results.to_csv("results.csv")
+
+    cached = {}
 
     def get_stop_name(stop_id):
-        if isinstance(stop_id, str):
-            stop_id = int(stop_id)
-        try:
-            return all_stops[all_stops["stop_id"] == stop_id]["stop_name"].values[0]
-        except IndexError:
-            return f"Stop ID {stop_id}"
+        original_stop_id = stop_id
+        if original_stop_id not in cached:
+            if isinstance(stop_id, str):
+                stop_id = int(stop_id)
+            try:
+                cached[original_stop_id] = all_stops[all_stops["stop_id"] == stop_id][
+                    "stop_name"
+                ].values[0]
+            except IndexError:
+                cached[original_stop_id] = f"Stop ID {stop_id}"
+        return cached[original_stop_id]
 
     results["direction_stop_name"] = results["directionId"].apply(get_stop_name)
     results["prev_stop_name"] = results["prev_stop_id"].apply(get_stop_name)

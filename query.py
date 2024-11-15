@@ -128,9 +128,10 @@ def get_average_speed_for(
     GROUP BY lineId, directionId, pointId, agg
     """
 
+    compute_start = datetime.now()
     con = duckdb.connect()
     results_df = con.execute(query).df()
-
+    print("took", datetime.now() - compute_start)
     columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
     results_df.columns = columns
 
@@ -139,5 +140,6 @@ def get_average_speed_for(
         .dt.tz_localize("UTC")
         .dt.tz_convert("Europe/Brussels")
     )
+    print("took2", datetime.now() - compute_start)
 
     return results_df

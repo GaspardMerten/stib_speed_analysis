@@ -124,7 +124,7 @@ def segment_inputs(direction_id, filtered_stops):
         .reset_index(drop=True)
     )
     st.markdown(
-        "---\n*Please select the start and end segment. Note that segments between start and end are included, "
+        "---\n*Please select the start and end interstop. Note that interstops  between start and end are included, "
         "for one single segment, select the same start and end.*\n"
     )
     start_segment_name = st.selectbox(
