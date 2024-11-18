@@ -2,8 +2,8 @@ from datetime import timedelta, datetime
 
 import streamlit as st
 
-import text
-from query import SpeedComputationMode
+from domain.query import SpeedComputationMode
+from interface import text
 
 
 def speed_input():
@@ -44,6 +44,27 @@ def excluded_period_inputs():
         # refresh the page
         st.rerun()
     return excluded_periods
+
+
+def single_period_input():
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        start_date = col1.date_input(
+            "Start date",
+            key="start_date",
+            value=datetime.now() - timedelta(days=365),
+            min_value=datetime(2023, 2, 27),
+            max_value=datetime.now() - timedelta(days=1),
+        )
+    with col2:
+        end_date = col2.date_input(
+            "End date",
+            key="end_date",
+            value=datetime.now() - timedelta(days=1),
+            min_value=datetime(2023, 3, 1),
+            max_value=datetime.now() - timedelta(days=1),
+        )
+    return start_date, end_date
 
 
 def period_inputs():

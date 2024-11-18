@@ -1,7 +1,5 @@
 import json
 import logging
-import os
-import time
 from datetime import datetime
 from typing import Any
 
@@ -11,9 +9,8 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
-import inputs
-import text
-from helpers import build_results, retrieve_stops_and_lines
+from domain.helpers import build_results, retrieve_stops_and_lines
+from interface import inputs, text
 
 
 def _set_default(key: str, value: Any):
@@ -34,14 +31,13 @@ SPEED_COLOR_RANGE = [
 logging.basicConfig(level=logging.INFO)
 
 
-# SET TIMEZONE AS Europe/Brussels
-os.environ["TZ"] = "Europe/Brussels"
-time.tzset()
+def focus_view():
+    st.header("STIB Focus Analysis")
+    st.markdown(
+        text.FOCUS,
+        unsafe_allow_html=True,
+    )
 
-
-def main():
-
-    st.set_page_config(page_title="STIB Speed Analysis")
     stops, line_ids = retrieve_stops_and_lines()
 
     defaults = {
@@ -53,8 +49,6 @@ def main():
 
     for k, v in defaults.items():
         _set_default(k, v)
-
-    st.markdown(text.HEADER)
 
     direction_id, filtered_stops, line_name = inputs.line_and_direction_inputs(
         line_ids, stops
@@ -383,7 +377,6 @@ def plot_map(speed_map):
         ),
         tooltip={"text": "{properties.avg_speed}"},
     )
-    deck.to_html("out.html")
     st.pydeck_chart(deck)
 
 
@@ -447,7 +440,3 @@ def fetch_and_compute(
             )
         except Exception as e:
             st.exception(e)
-
-
-if __name__ == "__main__":
-    main()

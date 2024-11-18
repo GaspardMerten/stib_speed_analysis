@@ -31,8 +31,8 @@ SPEED = """
      refreshed every 20 seconds, meaning some uncertainties can be present in the results, particularly when the
         vehicle is stopped. The following modes are available: </p>
         <ul>
-            <li><strong>Speed >= 0</strong>: This mode will include all the results where the speed is greater or equal to 0.</li>
-            <li><strong>Speed >= 0 but not 0 if close to stop</strong>: This mode will include all the results where the speed is greater or equal to 0, but not 0 if the stop is close to the stop.</li>
+            <li><strong>Speed >= 0</strong>: (VICOM) This mode will include all the results where the speed is greater or equal to 0.</li>
+            <li><strong>Speed >= 0 but not 0 if close to stop</strong>: (VICOM without time at stop)    This mode will include all the results where the speed is greater or equal to 0, but not 0 if the stop is close to the stop.</li>
             <li><strong>Speed > 0</strong>: This mode will include all the results where the speed is greater than 0.</li>
         </ul>
         The first one is the most pessimistic, the last one is the most optimistic.<br><br>
@@ -70,7 +70,7 @@ SPEED = """
     <p>
         The last stop ID is used to assign a interstop to each point. This ID updates when the bus reaches the next stop. 
         However, because data arrives every 20 seconds, the same stop ID can appear for multiple points, causing minor 
-        discrepancies in speed calculations. These discrepancies average out over longer intervals, meaning the speed for 
+        discrep ancies in speed calculations. These discrepancies average out over longer intervals, meaning the speed for 
         a interstop represents the average speed from when the bus arrives at the start stop to when it reaches the end stop.
     </p>
     <h4>No data for underground stops</h4>
@@ -111,3 +111,6 @@ RAW_DATA = (
     "hour, the speed computed, and the time spent between two stops which is computed using the speed and the "
     "length of the interstop ."
 )
+
+
+FOCUS = "Here you can focus on a specific line and direction to analyze the speed of vehicles over a specific time period and specific interstops. You can also filter the data by time periods, days of the week, and exc  lude certain periods like holidays."

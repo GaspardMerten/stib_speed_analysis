@@ -3,7 +3,7 @@ import geopandas
 import requests
 import streamlit as st
 
-from query import get_average_speed_for
+from domain.query import get_average_speed_for
 
 
 def auth_request(*args, **kwargs):
@@ -77,6 +77,18 @@ def get_segments(line_id, direction_id: int):
     segments_gdf["delta_distance"] = segments_gdf["distance"].diff()
 
     return segments_gdf
+
+
+def remove_speed_outliers(results):
+    # Remove outliers
+    q1 = results["speed"].quantile(0.25)
+    q3 = results["speed"].quantile(0.75)
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    return results[
+        (results["speed"] >= lower_bound) & (results["speed"] <= upper_bound)
+    ]
 
 
 def build_results(
