@@ -69,7 +69,11 @@ def insights_view():
 
         average_speed_overall = results["speed"].mean()
 
-        card_number("Average speed", average_speed_overall, "km/h")
+        st.metric(
+            "Average speed",
+            f"{average_speed_overall:0.2f}",
+            help="Expressed in km/h",
+        )
 
         # Plot average speed per month
         st.write("### Average speed per month")
