@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import List
 
@@ -64,7 +64,7 @@ def get_average_speed_for(
     response = auth_request(
         f"https://api.mobilitytwin.brussels/parquetized?start_timestamp={min_date_utc}&end_timestamp={max_date_utc}&component=stib_vehicle_distance_parquetize&keys={keys_url}"
     ).json()
-    print(response)
+
     logging.info(f"{start_datetime}, {end_datetime}, {min_date_utc}, {max_date_utc}")
 
     WHERE_FOR_DATE_AND_EXCLUDED_PERIODS = (
@@ -75,22 +75,25 @@ def get_average_speed_for(
         WHERE_FOR_DATE_AND_EXCLUDED_PERIODS += " AND "
         WHERE_FOR_DATE_AND_EXCLUDED_PERIODS += " AND ".join(
             [
-                f"(local_date <= '{start_date}' OR local_date >= '{end + timedelta(hours=23, minutes=50)}')"
+                f"(local_date < '{start}' OR datetrunc( 'day',local_date) > '{end}')"
                 for start, end in excluded_periods
             ]
         )
 
+    parquet_files = ",".join(map(lambda x: f"'{x}'", response["results"]))
+
     query = f"""WITH entries AS (   
-        SELECT (epoch((date))::int) as timestamp, lineId,pointId,directionId,distanceFromPoint, (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Brussels')::timestamp as local_date
-        FROM read_parquet([{','.join(map(lambda x: f"'{x}'", response["results"]))}])
+        SELECT lineId,pointId,directionId,distanceFromPoint, (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Brussels')::timestamp as local_date
+        FROM read_parquet([{parquet_files}])
         WHERE lineId = '{line_id}' AND pointId IN ({points}) AND
         extract(hour from local_date) >= {start_hour} AND extract(hour from local_date) <= {end_hour} 
         AND extract(dow from local_date) IN ({', '.join(map(str, selected_days))}) 
         AND {WHERE_FOR_DATE_AND_EXCLUDED_PERIODS}  
+
     ), filtered_entries AS (
         SELECT 
             *,
-            ROW_NUMBER() OVER (PARTITION BY directionId, pointId, local_date ORDER BY local_date) as row_num
+            count(*) OVER (PARTITION BY directionId, pointId, local_date) as row_count
         FROM entries
     ), deltaTable as (
     SELECT 
@@ -102,7 +105,7 @@ def get_average_speed_for(
         distanceFromPoint - lag(distanceFromPoint) OVER (PARTITION BY pointId, directionId,lineId ORDER BY local_date) AS distance_delta,
         (local_date - lag(local_date) OVER (PARTITION BY pointId, directionId, lineId ORDER BY local_date)) as time_delta
     FROM filtered_entries
-    WHERE row_num = 1
+    WHERE row_count = 1
     ), speedTable as (
     SELECT 
        local_date,
@@ -119,9 +122,11 @@ def get_average_speed_for(
     WHERE {MAPPING_SPEED_COMPUTATION_MODE[speed_computation_mode]}
     GROUP BY lineId, directionId, pointId, agg
     """
-
     con = duckdb.connect()
+    start_execution = datetime.now()
+
     results_df = con.execute(query).df()
+    print("took", datetime.now() - start_execution)
     columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
     results_df.columns = columns
 

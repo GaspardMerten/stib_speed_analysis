@@ -65,7 +65,7 @@ def focus_view():
 
     periods = inputs.period_inputs()
 
-    excluded_periods = inputs.excluded_period_inputs()
+    excluded_periods = inputs.excluded_period_inputs(periods)
 
     selected_compute = inputs.speed_input()
 
@@ -145,7 +145,6 @@ def display_results(end_segment_index, start_segment_index):
         tab_chart, tab_data = st.tabs(["📈 Chart", "🗃 Data"])
 
         with tab_chart:
-            color_bar()
             # Average speed per hour.
             tab_chart.markdown("Average speed/hour for the selected segment.")
             hourly_results = results[["date", "speed"]].copy()
@@ -269,8 +268,6 @@ def display_results(end_segment_index, start_segment_index):
     if st.session_state.periods_results and selected_period == "Comparison between all":
         st.header("Results for All Periods")
 
-        color_bar()
-
         # Concatenate results and assign period numbers.
         concatenated_results = pd.concat(
             [
@@ -309,7 +306,7 @@ def display_results(end_segment_index, start_segment_index):
 
         # Average speed per interstop  across periods.
         aggregated_results = (
-            concatenated_results.groupby(["stop_name", "period"])
+            concatenated_results.groupby(["stop_name", "period", "stop_sequence"])
             .agg(avg_speed=("speed", "mean"), total_time=("time", "mean"))
             .reset_index()
         )
@@ -326,13 +323,14 @@ def display_results(end_segment_index, start_segment_index):
         else:
             # with altair
             chart = (
-                alt.Chart(aggregated_results)
+                alt.Chart(aggregated_results.sort_values("stop_sequence"))
                 .mark_line()
                 .encode(
                     x=alt.X("stop_name", title="Segment", sort=None),
                     y=alt.Y(
                         "avg_speed",
                         title="Average speed (km/h)",
+                        sort=None,
                     ),
                     color=alt.Color("period"),
                     tooltip=["stop_name", "avg_speed"],
@@ -378,6 +376,8 @@ def plot_map(speed_map):
         tooltip={"text": "{properties.avg_speed}"},
     )
     st.pydeck_chart(deck)
+
+    color_bar()
 
 
 def fetch_and_compute(

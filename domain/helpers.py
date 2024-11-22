@@ -1,5 +1,10 @@
+import datetime
+from functools import lru_cache
+from typing import List
+
 import contextily
 import geopandas
+import pandas as pd
 import requests
 import streamlit as st
 
@@ -89,6 +94,29 @@ def remove_speed_outliers(results):
     return results[
         (results["speed"] >= lower_bound) & (results["speed"] <= upper_bound)
     ]
+
+
+@lru_cache(maxsize=1)
+def get_calendar_dates():
+    calendar_df = pd.read_csv("static/calendar.csv")[["CALENDAR_DATE", "DAY_TYPE"]]
+    calendar_df["CALENDAR_DATE"] = calendar_df["CALENDAR_DATE"].apply(
+        datetime.date.fromisoformat
+    )
+    return calendar_df
+
+
+def get_excluded_dates_as_period(day_types: List[str], start_date, end_date):
+    calendar_df = get_calendar_dates()
+    excluded_dates = calendar_df[
+        (calendar_df["DAY_TYPE"].isin(day_types))
+        & (calendar_df["CALENDAR_DATE"] >= start_date)
+        & (calendar_df["CALENDAR_DATE"] <= end_date)
+    ]
+
+    as_period = []
+    for index, row in excluded_dates.iterrows():
+        as_period.append((row["CALENDAR_DATE"], row["CALENDAR_DATE"]))
+    return as_period
 
 
 def build_results(

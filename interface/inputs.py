@@ -1,7 +1,9 @@
 from datetime import timedelta, datetime
+from typing import List
 
 import streamlit as st
 
+from domain.helpers import get_excluded_dates_as_period
 from domain.query import SpeedComputationMode
 from interface import text
 
@@ -22,11 +24,41 @@ def speed_input():
     return selected_compute
 
 
-def excluded_period_inputs():
+def excluded_period_inputs(periods: List[tuple[datetime, datetime]]):
     st.markdown(
         "---\n*Please select the different periods you want to exclude from the analysis, for instance holidays. This is **not mandatory**.*\n"
     )
+
     excluded_periods = []
+
+    excluded_day_types_mapping = {
+        "Public holiday and Sunday": "JFD",
+        "Saturday": "SAM",
+        "School holiday fr & nl": "JOV",
+        "Working day but holiday (fr)": "JOVfr",
+        "Working day but holiday (nl)": "JOVnl",
+        "Working day, not school holiday": "JOS",
+    }
+
+    excluded_day_types = st.multiselect(
+        "Select the type of period to exclude", list(excluded_day_types_mapping.keys())
+    )
+    min_date = datetime(2023, 2, 27).date()
+    max_date = datetime.now().date()
+
+    for period in periods:
+        if period[0] < min_date:
+            min_date = period[0]
+        if period[1] > max_date:
+            max_date = period[1]
+
+    excluded_periods += get_excluded_dates_as_period(
+        [excluded_day_types_mapping[day_type] for day_type in excluded_day_types],
+        min_date,
+        max_date,
+    )
+
+    st.text("Or manually select the periods to exclude:")
     for i in range(st.session_state.excluded_periods_count):
         feature = (
             st.date_input("Start date", key=f"excluded_start_date_{i}"),

@@ -1,14 +1,14 @@
 from typing import Any
 
-import streamlit as st
 import altair as alt
+import streamlit as st
+
 from domain.helpers import (
     retrieve_stops_and_lines,
     build_results,
     remove_speed_outliers,
 )
 from interface import inputs
-from interface.elements import card_number
 
 
 def _set_default(key: str, value: Any):
@@ -33,13 +33,20 @@ def insights_view():
         line_ids, stops
     )
 
+    # Filter stops dataframe based on direction selection
+    end_segment_index, start_segment_index = inputs.segment_inputs(
+        direction_id, filtered_stops
+    )
+
     end_hour, start_hour = inputs.hour_inputs()
 
     selected_days_human_index = inputs.day_inputs()
 
     period_start, period_end = inputs.single_period_input()
 
-    excluded_periods = inputs.excluded_period_inputs()
+    excluded_periods = inputs.excluded_period_inputs(
+        periods=[(period_start, period_end)]
+    )
 
     selected_compute = inputs.speed_input()
 
@@ -56,8 +63,8 @@ def insights_view():
                     end_hour,
                     period_start,
                     period_end,
-                    0,
-                    len(filtered_stops) - 1,
+                    start_segment_index,
+                    end_segment_index,
                     excluded_periods,
                     selected_compute,
                 )
@@ -87,18 +94,40 @@ def insights_view():
 
         # Average speed per day of the week
         st.write("### Average speed per day of the week")
-        results["day_of_week"] = results.index.day_name()
-        st.bar_chart(results.groupby("day_of_week")["speed"].mean())
+        results["day_of_week"] = (results.index.day_of_week + 1).astype(str)
+        results["day_of_week_name"] = (results.index.day_name()).astype(str)
+
+        df_per_day_of_the_week = (
+            results.groupby(["day_of_week", "day_of_week_name"])[["speed"]]
+            .mean()
+            .reset_index()
+        )
+        st.altair_chart(
+            alt.Chart(df_per_day_of_the_week)
+            .mark_bar()
+            .encode(
+                x=alt.X("day_of_week_name", title="Day of the week", sort=None),
+                y=alt.Y("speed", title="Average speed (km/h)", sort=None),
+            ),
+            use_container_width=True,
+        )
 
         # The same but boxplot with matplotlib
         st.write("### Boxplot of speed per day of the week")
 
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-
-        fig, ax = plt.subplots()
-        sns.boxplot(x="day_of_week", y="speed", data=results, ax=ax)
-        st.pyplot(fig)
+        st.altair_chart(
+            alt.Chart(
+                results[["day_of_week_name", "day_of_week", "speed"]]
+                .copy()
+                .sort_values("day_of_week")
+            )
+            .mark_boxplot()
+            .encode(
+                x=alt.X("day_of_week_name", title="Day of the week", sort=None),
+                y=alt.Y("speed", title="Speed (km/h)", sort=None),
+            ),
+            use_container_width=True,
+        )
 
         # Boxplot of speed per hour
         st.write("### Boxplot of speed per hour")
