@@ -9,6 +9,7 @@ from domain.helpers import (
     remove_speed_outliers,
 )
 from interface import inputs
+from interface.plot_map import plot_map
 
 
 def _set_default(key: str, value: Any):
@@ -137,3 +138,5 @@ def insights_view():
             x_label="Hour",
             y_label="Average speed (km/h)",
         )
+
+        plot_map(results)

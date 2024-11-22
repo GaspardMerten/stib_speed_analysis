@@ -1,16 +1,18 @@
-import json
 import logging
 from datetime import datetime
 from typing import Any
 
 import altair as alt
-import geopandas as gpd
 import pandas as pd
-import pydeck as pdk
 import streamlit as st
 
 from domain.helpers import build_results, retrieve_stops_and_lines
 from interface import inputs, text
+import geopandas as gpd
+import pydeck as pdk
+import json
+
+from interface.plot_map import plot_map
 
 
 def _set_default(key: str, value: Any):
@@ -193,14 +195,8 @@ def display_results(end_segment_index, start_segment_index):
 
             # Map of average speed per interstop .
             tab_chart.markdown("Average speed per interstop  (Map).")
-            speed_map = (
-                results.groupby(["stop_name", "geometry_y"])
-                .agg(avg_speed=("speed", "mean"))
-                .reset_index()
-                .rename(columns={"geometry_y": "geometry"})
-            )
 
-            plot_map(speed_map)
+            plot_map(results)
 
             # Average time per interstop .
             tab_chart.markdown("Average time per interstop  for the selected period.")
@@ -339,45 +335,6 @@ def display_results(end_segment_index, start_segment_index):
             )
 
             st.altair_chart(chart, use_container_width=True)
-
-
-def color_bar():
-    st.markdown(
-        text.COLOR_BAR,
-        unsafe_allow_html=True,
-    )
-
-
-def plot_map(speed_map):
-    gdf = gpd.GeoDataFrame(speed_map, geometry="geometry")
-    data = json.loads(gdf.to_json())
-    geojson = pdk.Layer(
-        "GeoJsonLayer",
-        data,
-        stroked=False,
-        filled=True,
-        extruded=True,
-        wireframe=True,
-        auto_highlight=True,
-        get_line_width=15,
-        get_line_color="""properties.avg_speed < 6 ? [255, 0, 0] : properties.avg_speed < 9 ? [255, 145, 0] : properties.avg_speed < 12 ? [255, 204, 0] : properties.avg_speed < 15 ? [144, 238, 144] : properties.avg_speed < 18 ? [50, 128, 50] : [0, 100, 0]""",
-    )
-
-    deck = pdk.Deck(
-        layers=[geojson],
-        initial_view_state=pdk.ViewState(
-            latitude=50.8,
-            longitude=4.35,
-            zoom=11,
-            max_zoom=16,
-            pitch=45,
-            bearing=0,
-        ),
-        tooltip={"text": "{properties.avg_speed}"},
-    )
-    st.pydeck_chart(deck)
-
-    color_bar()
 
 
 def fetch_and_compute(
