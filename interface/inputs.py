@@ -54,7 +54,7 @@ def single_period_input():
             key="start_date",
             value=datetime.now() - timedelta(days=365),
             min_value=datetime(2023, 2, 27),
-            max_value=datetime.now() - timedelta(days=1),
+            max_value=datetime.now(),
         )
     with col2:
         end_date = col2.date_input(
@@ -62,7 +62,7 @@ def single_period_input():
             key="end_date",
             value=datetime.now() - timedelta(days=1),
             min_value=datetime(2023, 3, 1),
-            max_value=datetime.now() - timedelta(days=1),
+            max_value=datetime.now(),
         )
     return start_date, end_date
 
@@ -86,7 +86,7 @@ def period_inputs():
                 key=f"start_date_{i}",
                 value=datetime.now() - timedelta(days=8),
                 min_value=datetime(2023, 2, 27),
-                max_value=datetime.now() - timedelta(days=1),
+                max_value=datetime.now(),
             )
         with col2:
             end_input = col2.date_input(
@@ -94,7 +94,7 @@ def period_inputs():
                 key=f"end_date_{i}",
                 value=datetime.now() - timedelta(days=1),
                 min_value=datetime(2023, 2, 1),
-                max_value=datetime.now() - timedelta(days=1),
+                max_value=datetime.now(),
             )
         feature = (
             start_input,
