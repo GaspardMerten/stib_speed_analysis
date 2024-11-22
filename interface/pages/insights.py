@@ -80,7 +80,7 @@ def insights_view():
         # set date as index
         results.set_index("date", inplace=True, drop=False)
         st.line_chart(
-            results["speed"].resample("M").mean(),
+            results["speed"].resample("ME").mean(),
             x_label="Month",
             y_label="Average speed (km/h)",
         )

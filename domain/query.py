@@ -120,15 +120,9 @@ def get_average_speed_for(
     GROUP BY lineId, directionId, pointId, agg
     """
 
-    compute_start = datetime.now()
     con = duckdb.connect()
     results_df = con.execute(query).df()
-    results_df.to_csv("results.csv")
     columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
     results_df.columns = columns
-
-    print("Took", datetime.now() - compute_start)
-
-    results_df["date"] = pd.to_datetime(results_df["date"])
 
     return results_df
