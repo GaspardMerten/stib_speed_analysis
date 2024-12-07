@@ -78,6 +78,27 @@ def excluded_period_inputs(periods: List[tuple[datetime, datetime]]):
     return excluded_periods
 
 
+def single_period_datetime_input():
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        start_date = col1.dateti(
+            "Start date",
+            key="start_date",
+            value=datetime.now() - timedelta(days=365),
+            min_value=datetime(2023, 2, 27),
+            max_value=datetime.now(),
+        )
+    with col2:
+        end_date = col2.datetime(
+            "End date",
+            key="end_date",
+            value=datetime.now() - timedelta(days=1),
+            min_value=datetime(2023, 3, 1),
+            max_value=datetime.now(),
+        )
+    return start_date, end_date
+
+
 def single_period_input():
     col1, col2 = st.columns([1, 1])
     with col1:

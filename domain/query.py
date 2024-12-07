@@ -115,7 +115,7 @@ def get_average_speed_for(
         distanceFromPoint,
         (distance_delta / epoch(time_delta)) as speed
         FROM deltaTable
-        WHERe epoch(time_delta) < 40 AND distance_delta < 600
+        WHERe epoch(time_delta) < 30 AND distance_delta < 600
     )
     SELECT  lineId, directionId, pointId, avg(speed) * 3.6, count(*) as count, time_bucket(interval '15 minutes', local_date) as agg
     FROM speedTable

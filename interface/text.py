@@ -1,24 +1,56 @@
 HEADER = """
 # 🚌 STIB Speed Analysis Dashboard
 
-Welcome to the **STIB Speed Analysis Dashboard**, a powerful tool developed in collaboration with the CoDE lab at the Université Libre de Bruxelles as part of the Brussels Mobility Twin project. This dashboard provides a user-friendly interface to analyze the speed of STIB vehicles across different lines and directions over specific time periods.
+Welcome to the **STIB Speed Analysis Dashboard**, a powerful tool developed in collaboration with the CoDE lab at the Université Libre de Bruxelles as part of the Brussels Mobility Twin umbrella project. 
 
-With this dashboard, you can:
-- Select a line and direction to focus your analysis.
-- Filter data by time periods, days of the week, and even exclude certain periods like holidays.
-- Visualize results with detailed data tables and dynamic plots, offering insights into vehicle speeds at different times and stops.
+This dashboard exploits open-source data from STIB-MIVB (https://stibmivb.opendatasoft.com). The data is then stored in the **MobilityTwin.Brussels** platform (as well a many other data sources, such as DeLijn, Lime, Tec, ...).
 
-### 📃 Features:
-- **Real-time Data Analysis:** Use up-to-date mobility data from the Brussels Mobility Twin platform.
-- **Flexible Filtering:** Customize your analysis by selecting lines, stops, and periods of interest.
-- **Interactive Visualizations:** View average speeds, times between stops, and other key metrics through intuitive charts and maps.
-- **Custom Speed Computation Modes:** Adjust how speeds are calculated to suit your analysis needs, from conservative to more optimistic estimates.
+The goal of this dashboard is to provide insights into the speed of STIB vehicles across the Brussels region. More details
+on our methodology can be found below, but first, let's get started!
 
-Visit the [Brussels Mobility Twin](https://mobilitytwin.brussels/) for more information on the data sources and the project behind this dashboard.
 
-Use the controls on the left to get started, and uncover insights into the dynamics of urban mobility in Brussels.
+### 🚍 How to use this dashboard:
 
-*For any questions or feedback, please contact gaspard.merten@ulb.be*
+#### Focus
+
+By going to the tab on the left called **Focus**, you can select a specific line and direction to analyze the speed of vehicles over a specific time period and specific interstops.
+ You can also filter the data by time periods, days of the week, and exclude certain periods like holidays (nl, fr, both, ...).
+ 
+You can also specify multiple periods to compare the speed of vehicles during different time frames. For instance,
+it is possible to compare the evolution of line 60 for the same period in 2023 and 2024.
+
+By focusing on specific interstops, you can analyse patterns, detect trends, and better understand how changes in road structure, traffic, or other factors impact vehicle speeds.
+
+This tab should allow to quickly retrieve analysis on specific interstops, lines, and directions, instead of having to manually ask STIB for the data.
+
+#### Insights
+
+*Currently under development*
+
+The **Insights** tab provides a high-level overview of the data, including average speeds, time between stops, and other key metrics. This tab is useful for quickly understanding the overall performance of a line or direction.
+
+#### Trips
+
+*Currently under development*
+
+The **Trips** tab allows you to visualize the trips of STIB vehicles over a specific time period across all lines. It is a visual representation of an experiment to retrieve identifier for vehicles in the STIB open-data, as STIB-MIVB removes
+the vehicle identifier from the data, an unusual practice in the public transport sector. We are hence working on a solution to retrieve it, to further
+enhance the capabilities of this dashboard.
+
+
+### 📃 Methodology
+
+
+We believe that a clear methodology is key to understanding the data and the insights that can be drawn from it. Data can only be truly valuable when it is transparent and reproducible. Below, we provide a detailed explanation of how we calculate the speed of STIB vehicles.
+
+As there are no identifiers for vehicles in the STIB open data, we have developed a methodology to calculate the speed of vehicles based on the distance between stops and the time between two consecutive points.
+
+As we do not have vehicle's identifiers, we only consider segment for which there is only one vehicle present at both t=0s and t=20s. Moreover, we conider the interstop starting at the moment the bus arrives at the first stop and ending when the bus reaches the next stop - due to data constraints.
+
+The speed is then calculated by dividing the distance delta by the time delta. This approach allows us to calculate the speed of vehicles across the STIB network, providing insights into the performance of the public transport system.
+
+We then aggregate the data to provide average speeds, time between stops, and other key metrics for each line, direction, and interstop. This data is then visualized in the dashboard, allowing users to explore the data and draw their own conclusions.
+
 
 ---
 """

@@ -6,6 +6,7 @@ import streamlit as st
 from interface.pages.focus import focus_view
 from interface.pages.home import home_view
 from interface.pages.insights import insights_view
+from interface.pages.trips import trips_view
 
 # SET TIMEZONE AS Europe/Brussels
 os.environ["TZ"] = "Europe/Brussels"
@@ -36,9 +37,15 @@ def main():
         url_path="/insights",
         icon=":material/star:",
     )
+    trips = st.Page(
+        trips_view,
+        title="Trips (experimental)",
+        url_path="/trips",
+        icon=":material/map:",
+    )
 
     pg = st.navigation(
-        [home, focus, insights],
+        [home, focus, insights, trips],
     )
 
     pg.run()

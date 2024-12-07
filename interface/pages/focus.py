@@ -299,10 +299,14 @@ def display_results(end_segment_index, start_segment_index):
         )
 
         st.altair_chart(chart, use_container_width=True)
-
+        concatenated_results["segment"] = (
+            concatenated_results["prev_stop_name"]
+            + " -> "
+            + concatenated_results["stop_name"]
+        )
         # Average speed per interstop  across periods.
         aggregated_results = (
-            concatenated_results.groupby(["stop_name", "period", "stop_sequence"])
+            concatenated_results.groupby(["segment", "period", "stop_sequence"])
             .agg(avg_speed=("speed", "mean"), total_time=("time", "mean"))
             .reset_index()
         )
@@ -314,7 +318,7 @@ def display_results(end_segment_index, start_segment_index):
         # Plot results based on interstop selection.
         if start_segment_index == end_segment_index:
             st.scatter_chart(
-                aggregated_results, x="stop_name", y="avg_speed", color="period"
+                aggregated_results, x="segment", y="avg_speed", color="period"
             )
         else:
             # with altair
@@ -322,14 +326,14 @@ def display_results(end_segment_index, start_segment_index):
                 alt.Chart(aggregated_results.sort_values("stop_sequence"))
                 .mark_line()
                 .encode(
-                    x=alt.X("stop_name", title="Segment", sort=None),
+                    x=alt.X("segment", title="Segment", sort=None),
                     y=alt.Y(
                         "avg_speed",
                         title="Average speed (km/h)",
                         sort=None,
                     ),
                     color=alt.Color("period"),
-                    tooltip=["stop_name", "avg_speed"],
+                    tooltip=["segment", "avg_speed"],
                 )
                 .properties(height=500)
             )
