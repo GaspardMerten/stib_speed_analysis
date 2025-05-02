@@ -126,5 +126,5 @@ def get_average_speed_for(
     results_df = con.execute(query).df()
     columns = ["lineId", "directionId", "pointId", "speed", "count", "date"]
     results_df.columns = columns
-
+    results_df.to_csv("results.csv", index=False)
     return results_df

@@ -135,6 +135,8 @@ def build_results(
 ):
     all_stops = get_stops()
 
+    all_stops.to_csv("all_stops.csv", index=False)
+
     segments = get_segments(line_name, direction_id)
     # drop direction column
     segments = segments.drop(columns=["direction"])
@@ -191,8 +193,24 @@ def build_results(
                 cached[original_stop_id] = f"Stop ID {stop_id}"
         return cached[original_stop_id]
 
+    group_by_cols\
+        = results.columns[
+        ~results.columns.isin(["count", "speed", "directionId"])
+
+    ]
+
+    results = results.groupby(list(group_by_cols)
+                              ).agg(
+        {
+            "count": "sum",
+            "speed": "mean",
+            "directionId": "first",
+        }
+    ).reset_index()
+
     results["direction_stop_name"] = results["directionId"].apply(get_stop_name)
     results["prev_stop_name"] = results["prev_stop_id"].apply(get_stop_name)
     results["time"] = results["delta_distance"] / (results["speed"] / 3.6)
+    # Group by prev_stop_name and direction_stop_name
 
     return results
