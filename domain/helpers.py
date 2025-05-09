@@ -172,10 +172,8 @@ def build_results(
     # Convert pointId to integer
     results["pointId"] = results["pointId"].astype(int)
 
-    selected_stops.set_index("prev_stop_id", inplace=True, drop=False)
-    results.set_index("pointId", inplace=True)
     results = selected_stops.merge(
-        results, left_index=True, right_index=True, how="right"
+        results, left_on="prev_stop_id", right_index=True, how="right"
     )
 
     cached = {}
@@ -193,20 +191,22 @@ def build_results(
                 cached[original_stop_id] = f"Stop ID {stop_id}"
         return cached[original_stop_id]
 
-    group_by_cols\
-        = results.columns[
+    group_by_cols = results.columns[
         ~results.columns.isin(["count", "speed", "directionId"])
-
     ]
 
-    results = results.groupby(list(group_by_cols)
-                              ).agg(
-        {
-            "count": "sum",
-            "speed": "mean",
-            "directionId": "first",
-        }
-    ).reset_index()
+    results = (
+        results.reset_index()
+        .groupby(list(group_by_cols))
+        .agg(
+            {
+                "count": "sum",
+                "speed": "mean",
+                "directionId": "first",
+            }
+        )
+        .reset_index()
+    )
 
     results["direction_stop_name"] = results["directionId"].apply(get_stop_name)
     results["prev_stop_name"] = results["prev_stop_id"].apply(get_stop_name)
